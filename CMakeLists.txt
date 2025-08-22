@@ -4,10 +4,10 @@ project(covscript-gmssl)
 
 set(BUILD_SHARED_LIBS OFF CACHE BOOL "Override BUILD_SHARED_LIBS option to OFF")
 
-add_subdirectory(gmssl EXCLUDE_FROM_ALL)
+add_subdirectory(GmSSL EXCLUDE_FROM_ALL)
 
 include_directories(cppcodec)
-include_directories(gmssl/include)
+include_directories(GmSSL/include)
 
 if(DEFINED ENV{CS_DEV_PATH})
     include_directories($ENV{CS_DEV_PATH}/include)
