@@ -1,0 +1,12 @@
+package gmssl
+
+import gmssl_impl
+using gmssl_impl
+
+function rand_bytes(...args)
+    return args.size == 1 ? rand_bytes_s(args...) : rand_bytes_v(args...)
+end
+
+function sm4(...args)
+    return args.size == 4 ? sm4_s(args...) : sm4_v(args...)
+end

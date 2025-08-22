@@ -1,0 +1,6 @@
+[submodule "gmssl"]
+	path = gmssl
+	url = https://github.com/mikecovlee/GmSSL
+[submodule "cppcodec"]
+	path = cppcodec
+	url = https://github.com/tplgy/cppcodec
