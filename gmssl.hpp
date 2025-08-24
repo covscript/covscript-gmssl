@@ -19,8 +19,9 @@ namespace gmssl {
 		std::mt19937 generator(seed);
 		std::string result;
 		result.reserve(count);
+		std::uniform_int_distribution<size_t> dist(0, std::strlen(raw_bytes) - 1);
 		for (size_t i = 0; i < count; ++i)
-			result += raw_bytes[std::uniform_int_distribution<size_t>(0, sizeof(raw_bytes))(generator)];
+			result.push_back(raw_bytes[dist(generator)]);
 		return result;
 	}
 	uint8_array_t bytes_encode(const std::string &str)
