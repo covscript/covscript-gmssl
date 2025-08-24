@@ -3,6 +3,7 @@
 #include <gmssl/sm3.h>
 #include <gmssl/sm4.h>
 #include <stdexcept>
+#include <cstring>
 #include <string>
 #include <vector>
 #include <random>
