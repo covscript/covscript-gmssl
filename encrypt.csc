@@ -1,11 +1,31 @@
 import gmssl
 
-var key = "covscript1234567"
 var seed = 2333
 var iv = gmssl.rand_bytes(gmssl.sm4_key_size, seed)
-system.out.println("SM4 IV = " + iv)
+system.out.println("SM4 IV: " + iv)
+
+var key = null
+gmssl.set_stdin_echo(false)
+loop
+    system.out.print("Please set password: ")
+    key = system.in.getline()
+    if key.size != gmssl.sm4_key_size
+        system.out.println("\nPassword must have " + gmssl.sm4_key_size + " characters.")
+        continue
+    end
+    system.out.print("\nRepeat password: ")
+    if system.in.getline() != key
+        system.out.println("\nPassword not match.")
+        continue
+    else
+        system.out.print("\n")
+        break
+    end
+end
+gmssl.set_stdin_echo(true)
 
 while system.in.good()
+    system.out.print("Data: ")
     var input_bytes = gmssl.bytes_encode(system.in.getline())
     system.out.println("SM3 Digest: " + gmssl.hex_encode(gmssl.sm3_digest(input_bytes)))
     
