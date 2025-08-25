@@ -2,7 +2,7 @@
 mkdir cmake-build\mingw-w64
 cd    cmake-build\mingw-w64
 cmake -G "MinGW Makefiles" ..\..
-cmake --build . -- -j4
+cmake --build . -- covscript-gmssl -j4
 cd ..\..
 rd /S /Q build
 mkdir build\imports
