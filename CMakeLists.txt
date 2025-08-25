@@ -2,10 +2,6 @@ cmake_minimum_required(VERSION 3.13)
 
 project(covscript-gmssl)
 
-set(BUILD_SHARED_LIBS OFF CACHE BOOL "Override BUILD_SHARED_LIBS option to OFF")
-
-add_subdirectory(GmSSL EXCLUDE_FROM_ALL)
-
 include_directories(cppcodec)
 include_directories(GmSSL/include)
 
@@ -37,6 +33,10 @@ else ()
     set(CMAKE_C_FLAGS "-fPIC -O3")
     set(CMAKE_CXX_FLAGS "-fPIC -O3")
 endif ()
+
+set(BUILD_SHARED_LIBS OFF CACHE BOOL "Override BUILD_SHARED_LIBS option to OFF")
+
+add_subdirectory(GmSSL EXCLUDE_FROM_ALL)
 
 add_library(covscript-gmssl SHARED gmssl_impl.cpp)
 
