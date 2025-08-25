@@ -1,0 +1,11 @@
+{
+    "Type": "Package",
+    "Name": "gmssl",
+    "Info": "GmSSL Wrapper (SM3, SM4, etc.)",
+    "Author": "CovScript Organization",
+    "Version": "1.0.0",
+    "Target": "gmssl.csp",
+    "Dependencies": [
+        "gmssl_impl"
+    ]
+}
