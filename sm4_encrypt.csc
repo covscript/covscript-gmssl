@@ -1,7 +1,7 @@
 import gmssl
 
 var seed = 2333
-var iv = gmssl.rand_bytes(gmssl.sm4_key_size, seed)
+var iv = gmssl.rand_bytes_s(gmssl.sm4_key_size, seed)
 system.out.println("SM4 IV: " + iv)
 
 var key = null

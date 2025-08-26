@@ -1,11 +1,9 @@
 {
-    "Type": "Package",
+    "Type": "Extension",
     "Name": "gmssl",
-    "Info": "GmSSL Wrapper (SM3, SM4, etc.)",
+    "Info": "GmSSL Utils (SM2, SM3, SM4, etc.)",
     "Author": "CovScript Organization",
-    "Version": "1.0.0",
-    "Target": "gmssl.csp",
-    "Dependencies": [
-        "gmssl_impl"
-    ]
+    "Version": "1.0.1",
+    "Target": "build/imports/gmssl.cse",
+    "Dependencies": []
 }

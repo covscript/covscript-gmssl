@@ -1,9 +1,0 @@
-{
-    "Type": "Extension",
-    "Name": "gmssl_impl",
-    "Info": "GmSSL Implementation (SM3, SM4, etc.)",
-    "Author": "CovScript Organization",
-    "Version": "1.0.0",
-    "Target": "build/imports/gmssl_impl.cse",
-    "Dependencies": []
-}

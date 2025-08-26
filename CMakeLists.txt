@@ -38,14 +38,10 @@ set(BUILD_SHARED_LIBS OFF CACHE BOOL "Override BUILD_SHARED_LIBS option to OFF")
 
 add_subdirectory(GmSSL EXCLUDE_FROM_ALL)
 
-add_library(covscript-gmssl SHARED gmssl_impl.cpp)
+add_library(covscript-gmssl SHARED gmssl.cpp)
 
 target_link_libraries(covscript-gmssl gmssl covscript)
 
-set_target_properties(covscript-gmssl PROPERTIES OUTPUT_NAME gmssl_impl)
+set_target_properties(covscript-gmssl PROPERTIES OUTPUT_NAME gmssl)
 set_target_properties(covscript-gmssl PROPERTIES PREFIX "")
 set_target_properties(covscript-gmssl PROPERTIES SUFFIX ".cse")
-
-add_executable(gmssl-test test.cpp)
-
-target_link_libraries(gmssl-test gmssl)

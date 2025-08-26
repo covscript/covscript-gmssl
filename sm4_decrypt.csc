@@ -21,7 +21,7 @@ gmssl.set_stdin_echo(true)
 system.out.print("SM4 IV: ")
 var iv = system.in.getline()
 if iv.empty()
-    iv = gmssl.rand_bytes(gmssl.sm4_key_size, seed)
+    iv = gmssl.rand_bytes_s(gmssl.sm4_key_size, seed)
     system.out.println("Set to default IV: " + iv)
 end
 
