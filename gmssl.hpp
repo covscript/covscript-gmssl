@@ -214,6 +214,80 @@ namespace gmssl {
 
 		return std::move(ret);
 	}
+	uint8_array_t sm2_sign_stream(const uint8_array_t &privkey, const std::string &passwd, const std::string &id, std::istream &is)
+	{
+		if (privkey.size() == 0)
+			throw std::runtime_error("GmSSL SM2 private key is empty.");
+
+		if (!is)
+			throw std::runtime_error("GmSSL SM2 input stream not available.");
+
+		SM2_KEY key;
+		uint8_array_t keybuf(buff_size);
+		if (privkey.size() > keybuf.size())
+			throw std::runtime_error("GmSSL SM2 private key too large.");
+
+		std::memcpy(keybuf.data(), privkey.data(), privkey.size());
+		const uint8_t *keyp = keybuf.data();
+		size_t keylen = privkey.size();
+		const uint8_t *attrs = nullptr;
+		size_t attrs_len = 0;
+
+		if (sm2_private_key_info_decrypt_from_der(&key, &attrs, &attrs_len, passwd.c_str(), &keyp, &keylen) != 1) {
+			gmssl_secure_clear(&key, sizeof(key));
+			gmssl_secure_clear(keybuf.data(), keybuf.size());
+			throw std::runtime_error("GmSSL SM2 private key decode failed.");
+		}
+
+		if (!asn1_length_is_zero(keylen)) {
+			gmssl_secure_clear(&key, sizeof(key));
+			gmssl_secure_clear(keybuf.data(), keybuf.size());
+			throw std::runtime_error("GmSSL SM2 extra bytes after private key decode.");
+		}
+
+		SM2_SIGN_CTX ctx;
+		if (sm2_sign_init(&ctx, &key, id.c_str(), id.size()) != 1) {
+			gmssl_secure_clear(&key, sizeof(key));
+			gmssl_secure_clear(&ctx, sizeof(ctx));
+			gmssl_secure_clear(keybuf.data(), keybuf.size());
+			throw std::runtime_error("GmSSL SM2 sign init failed.");
+		}
+
+		uint8_array_t sig(SM2_MAX_SIGNATURE_SIZE);
+		uint8_array_t inbuf(buff_size);
+		size_t outlen = 0;
+
+		while (is) {
+			size_t inlen = is.readsome(reinterpret_cast<char *>(inbuf.data()), buff_size);
+			if (sm2_sign_update(&ctx, inbuf.data(), inlen) != 1) {
+				gmssl_secure_clear(&key, sizeof(key));
+				gmssl_secure_clear(&ctx, sizeof(ctx));
+				gmssl_secure_clear(keybuf.data(), keybuf.size());
+				gmssl_secure_clear(sig.data(), sig.size());
+				gmssl_secure_clear(inbuf.data(), buff_size);
+				throw std::runtime_error("GmSSL SM2 sign update failed.");
+			}
+		}
+
+		if (sm2_sign_finish(&ctx, sig.data(), &outlen) != 1) {
+			gmssl_secure_clear(&key, sizeof(key));
+			gmssl_secure_clear(&ctx, sizeof(ctx));
+			gmssl_secure_clear(keybuf.data(), keybuf.size());
+			gmssl_secure_clear(sig.data(), sig.size());
+			gmssl_secure_clear(inbuf.data(), buff_size);
+			throw std::runtime_error("GmSSL SM2 sign finish failed.");
+		}
+
+		uint8_array_t ret(sig.data(), sig.data() + outlen);
+
+		gmssl_secure_clear(&key, sizeof(key));
+		gmssl_secure_clear(&ctx, sizeof(ctx));
+		gmssl_secure_clear(keybuf.data(), keybuf.size());
+		gmssl_secure_clear(sig.data(), sig.size());
+		gmssl_secure_clear(inbuf.data(), buff_size);
+
+		return std::move(ret);
+	}
 	bool sm2_verify(const uint8_array_t &pubkey, const uint8_array_t &sig, const std::string &id, const uint8_array_t &input_bytes)
 	{
 		if (pubkey.size() == 0)
@@ -274,6 +348,70 @@ namespace gmssl {
 		gmssl_secure_clear(&key, sizeof(key));
 		gmssl_secure_clear(&ctx, sizeof(ctx));
 		gmssl_secure_clear(keybuf.data(), keybuf.size());
+
+		return vr == 1;
+	}
+	bool sm2_verify_stream(const uint8_array_t &pubkey, const uint8_array_t &sig, const std::string &id, std::istream &is)
+	{
+		if (pubkey.size() == 0)
+			throw std::runtime_error("GmSSL SM2 public key is empty.");
+
+		if (sig.size() == 0 || sig.size() > SM2_MAX_SIGNATURE_SIZE)
+			throw std::runtime_error("GmSSL SM2 signature size invalid.");
+
+		if (!is)
+			throw std::runtime_error("GmSSL SM2 input stream not available.");
+
+		SM2_KEY key;
+		uint8_array_t keybuf(buff_size);
+		if (pubkey.size() > keybuf.size())
+			throw std::runtime_error("GmSSL SM2 public key too large.");
+
+		std::memcpy(keybuf.data(), pubkey.data(), pubkey.size());
+		const uint8_t *keyp = keybuf.data();
+		size_t keylen = pubkey.size();
+		if (sm2_public_key_info_from_der(&key, &keyp, &keylen) != 1) {
+			gmssl_secure_clear(&key, sizeof(key));
+			gmssl_secure_clear(keybuf.data(), keybuf.size());
+			throw std::runtime_error("GmSSL SM2 public key decode failed.");
+		}
+
+		if (!asn1_length_is_zero(keylen)) {
+			gmssl_secure_clear(&key, sizeof(key));
+			gmssl_secure_clear(keybuf.data(), keybuf.size());
+			throw std::runtime_error("GmSSL SM2 extra bytes after public key decode.");
+		}
+
+		SM2_VERIFY_CTX ctx;
+		if (sm2_verify_init(&ctx, &key, id.c_str(), id.size()) != 1) {
+			gmssl_secure_clear(&key, sizeof(key));
+			gmssl_secure_clear(&ctx, sizeof(ctx));
+			gmssl_secure_clear(keybuf.data(), keybuf.size());
+			throw std::runtime_error("GmSSL SM2 verify init failed.");
+		}
+
+		uint8_array_t inbuf(buff_size);
+
+		while (is) {
+			size_t inlen = is.readsome(reinterpret_cast<char *>(inbuf.data()), buff_size);
+			if (sm2_verify_update(&ctx, inbuf.data(), inlen) != 1) {
+				gmssl_secure_clear(&key, sizeof(key));
+				gmssl_secure_clear(&ctx, sizeof(ctx));
+				gmssl_secure_clear(keybuf.data(), keybuf.size());
+				gmssl_secure_clear(inbuf.data(), buff_size);
+				throw std::runtime_error("GmSSL SM2 verify update failed.");
+			}
+		}
+
+		int vr = sm2_verify_finish(&ctx, sig.data(), sig.size());
+
+		if (vr < 0)
+			throw std::runtime_error("GmSSL SM2 verify finish failed.");
+
+		gmssl_secure_clear(&key, sizeof(key));
+		gmssl_secure_clear(&ctx, sizeof(ctx));
+		gmssl_secure_clear(keybuf.data(), keybuf.size());
+		gmssl_secure_clear(inbuf.data(), buff_size);
 
 		return vr == 1;
 	}
@@ -500,5 +638,63 @@ namespace gmssl {
 		gmssl_secure_clear(buff.data(), buff_size);
 
 		return output_bytes;
+	}
+	void sm4_stream(sm4_mode action, const std::string &key, const std::string &init_vec, std::istream &is, std::ostream &os)
+	{
+		if (key.size() != sm4_key_size || init_vec.size() != sm4_key_size)
+			throw std::runtime_error("GmSSL SM4 key or iv size error.");
+
+		if (!is || !os)
+			throw std::runtime_error("GmSSL SM4 stream not available.");
+
+		const uint8_t *k = reinterpret_cast<const uint8_t *>(key.data());
+		const uint8_t *iv = reinterpret_cast<const uint8_t *>(init_vec.data());
+
+		union {
+			SM4_CBC_CTX cbc;
+			SM4_CTR_CTX ctr;
+		} ctx;
+
+		if (((uint8_t)action & 0b10 ? sm4_ctr_encrypt_init(&ctx.ctr, k, iv) :
+		        ((uint8_t)action & 0b01 ? sm4_cbc_decrypt_init(&ctx.cbc, k, iv) :
+		         sm4_cbc_encrypt_init(&ctx.cbc, k, iv))) != 1) {
+			gmssl_secure_clear(&ctx, sizeof(ctx));
+			throw std::runtime_error("GmSSL SM4 context init failed.");
+		}
+
+		uint8_array_t inbuf(buff_size);
+		uint8_array_t outbuf(buff_size);
+		size_t outlen = 0;
+
+		while (is) {
+			size_t inlen = is.readsome(reinterpret_cast<char *>(inbuf.data()), buff_size);
+			if (((uint8_t)action & 0b10 ? sm4_ctr_encrypt_update(&ctx.ctr, inbuf.data(), inlen, outbuf.data(), &outlen) :
+			        ((uint8_t)action & 0b01 ? sm4_cbc_decrypt_update(&ctx.cbc, inbuf.data(), inlen, outbuf.data(), &outlen) :
+			         sm4_cbc_encrypt_update(&ctx.cbc, inbuf.data(), inlen, outbuf.data(), &outlen))) != 1) {
+				gmssl_secure_clear(&ctx, sizeof(ctx));
+				gmssl_secure_clear(inbuf.data(), buff_size);
+				gmssl_secure_clear(outbuf.data(), buff_size);
+				throw std::runtime_error((uint8_t)action & 0b01 ? "GmSSL SM4 decrypt error." : "GmSSL SM4 encrypt error.");
+			}
+
+			if (outlen > 0)
+				os.write(reinterpret_cast<const char *>(outbuf.data()), outlen);
+		}
+
+		if (((uint8_t)action & 0b10 ? sm4_ctr_encrypt_finish(&ctx.ctr, outbuf.data(), &outlen) :
+		        ((uint8_t)action & 0b01 ? sm4_cbc_decrypt_finish(&ctx.cbc, outbuf.data(), &outlen) :
+		         sm4_cbc_encrypt_finish(&ctx.cbc, outbuf.data(), &outlen))) != 1) {
+			gmssl_secure_clear(&ctx, sizeof(ctx));
+			gmssl_secure_clear(inbuf.data(), buff_size);
+			gmssl_secure_clear(outbuf.data(), buff_size);
+			throw std::runtime_error((uint8_t)action & 0b01 ? "GmSSL SM4 decrypt finish failed." : "GmSSL SM4 encrypt finish failed.");
+		}
+
+		if (outlen > 0)
+			os.write(reinterpret_cast<const char *>(outbuf.data()), outlen);
+
+		gmssl_secure_clear(&ctx, sizeof(ctx));
+		gmssl_secure_clear(inbuf.data(), buff_size);
+		gmssl_secure_clear(outbuf.data(), buff_size);
 	}
 }

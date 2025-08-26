@@ -67,7 +67,9 @@ CNI_ROOT_NAMESPACE {
 	}
 	CNI_V(sm2_key_generate, sm2_key_generate_impl)
 	CNI_V(sm2_sign, gmssl::sm2_sign)
+	CNI(sm2_sign_stream)
 	CNI_V(sm2_verify, gmssl::sm2_verify)
+	CNI(sm2_verify_stream)
 	CNI_V(sm2_encrypt, gmssl::sm2_encrypt)
 	CNI_V(sm2_decrypt, gmssl::sm2_decrypt)
 	CNI(sm3_digest)
@@ -80,4 +82,5 @@ CNI_ROOT_NAMESPACE {
 	}
 	CNI_VALUE_CONST(sm4_key_size, gmssl::sm4_key_size)
 	CNI(sm4)
+	CNI(sm4_stream)
 }
