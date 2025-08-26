@@ -4,4 +4,5 @@ cppcodec/
 gmssl/
 cmake-build/
 
+*.pem
 *.orig
