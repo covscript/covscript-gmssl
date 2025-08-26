@@ -3,7 +3,7 @@
     "Name": "gmssl",
     "Info": "GmSSL Utils (SM2, SM3, SM4, etc.)",
     "Author": "CovScript Organization",
-    "Version": "1.0.1",
+    "Version": "1.1.0",
     "Target": "build/imports/gmssl.cse",
     "Dependencies": []
 }
