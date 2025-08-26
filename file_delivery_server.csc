@@ -1,9 +1,10 @@
 import network
 import gmssl
 
-var pubkey = gmssl.sm2_pem_read(context.cmd_args.at(1))
-var privkey = gmssl.sm2_pem_read(context.cmd_args.at(2))
-var keypass = context.cmd_args.at(3)
+var addr = context.cmd_args.at(1)
+var pubkey = gmssl.sm2_pem_read(context.cmd_args.at(2))
+var privkey = gmssl.sm2_pem_read(context.cmd_args.at(3))
+var keypass = context.cmd_args.at(4)
 
 using network
 using system
@@ -41,9 +42,9 @@ function receive_content(sock)
     return buff
 end
 
-system.out.println("Listen on 127.0.0.1 port 1024")
+system.out.println("Listen on " + addr + " port 1024")
 var sock = new tcp.socket
-var a = tcp.acceptor(tcp.endpoint("127.0.0.1", 1024))
+var a = tcp.acceptor(tcp.endpoint(addr, 1024))
 runtime.wait_until(10000, []()->sock.accept(a), {})
 
 # authentication
