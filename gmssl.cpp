@@ -66,6 +66,8 @@ CNI_ROOT_NAMESPACE {
 		return cs::var::make<cs::array>(cs::array({pubkey, privkey}));
 	}
 	CNI_V(sm2_key_generate, sm2_key_generate_impl)
+	CNI_V(sm2_sign, gmssl::sm2_sign)
+	CNI_V(sm2_verify, gmssl::sm2_verify)
 	CNI_V(sm2_encrypt, gmssl::sm2_encrypt)
 	CNI_V(sm2_decrypt, gmssl::sm2_decrypt)
 	CNI(sm3_digest)
