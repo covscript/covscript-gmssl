@@ -48,17 +48,22 @@ var a = tcp.acceptor(tcp.endpoint(addr, 1024))
 runtime.wait_until(10000, []()->sock.accept(a), {})
 
 # authentication
-var session_id = gmssl.sm2_decrypt(privkey, keypass, gmssl.hex_decode(gmssl.bytes_encode(receive_content(sock))))
-var session_id_digest = gmssl.bytes_decode(gmssl.hex_encode(gmssl.sm3(session_id)))
+send_content(sock, gmssl.bytes_decode(gmssl.base64_encode(pubkey)))
+if receive_content(sock) != "AUTH_SUCCESS"
+    system.out.println("Authentication failed.")
+    system.exit(0)
+end
+var session_id = gmssl.sm2_decrypt(privkey, keypass, gmssl.base64_decode(gmssl.bytes_encode(receive_content(sock))))
+var session_id_digest = gmssl.bytes_decode(gmssl.base64_encode(gmssl.sm3(session_id)))
 send_content(sock, session_id_digest)
 
 # transmission
 system.out.println("Authentication succeed. Starting transmission...")
 var pass = receive_content(sock)
-pass = gmssl.sm2_decrypt(privkey, keypass, gmssl.hex_decode(gmssl.bytes_encode(pass)))
-var iv = gmssl.hex_decode(gmssl.bytes_encode(receive_content(sock)))
+pass = gmssl.sm2_decrypt(privkey, keypass, gmssl.base64_decode(gmssl.bytes_encode(pass)))
+var iv = gmssl.base64_decode(gmssl.bytes_encode(receive_content(sock)))
 var file_content = receive_content(sock)
-file_content = gmssl.bytes_decode(gmssl.sm4(gmssl.sm4_mode.ctr_decrypt, pass, iv, gmssl.hex_decode(gmssl.bytes_encode(file_content))))
+file_content = gmssl.bytes_decode(gmssl.sm4(gmssl.sm4_mode.ctr_decrypt, pass, iv, gmssl.base64_decode(gmssl.bytes_encode(file_content))))
 gmssl.secure_clear(privkey)
 system.out.println("Transmission finished.")
 system.out.println("\n---- BEGINING OF CONTENT ----\n")
