@@ -3,6 +3,18 @@ cmake_minimum_required(VERSION 3.13)
 project(covscript-gmssl)
 
 include_directories(cppcodec)
+
+set(BUILD_SHARED_LIBS OFF CACHE BOOL "Override BUILD_SHARED_LIBS option to OFF")
+set(ENABLE_SM4_ECB OFF CACHE BOOL "Override ENABLE_SM4_ECB option to OFF")
+set(ENABLE_SM4_OFB OFF CACHE BOOL "Override ENABLE_SM4_OFB option to OFF")
+set(ENABLE_SM4_CFB OFF CACHE BOOL "Override ENABLE_SM4_CFB option to OFF")
+set(ENABLE_SM4_CCM OFF CACHE BOOL "Override ENABLE_SM4_CCM option to OFF")
+set(ENABLE_SM4_XTS OFF CACHE BOOL "Override ENABLE_SM4_XTS option to OFF")
+set(ENABLE_SM3_XMSS OFF CACHE BOOL "Override ENABLE_SM3_XMSS option to OFF")
+set(ENABLE_SHA1 OFF CACHE BOOL "Override ENABLE_SHA1 option to OFF")
+set(ENABLE_SHA2 OFF CACHE BOOL "Override ENABLE_SHA2 option to OFF")
+set(ENABLE_AES OFF CACHE BOOL "Override ENABLE_AES option to OFF")
+
 include_directories(GmSSL/include)
 
 if(DEFINED ENV{CS_DEV_PATH})
@@ -33,8 +45,6 @@ else ()
     set(CMAKE_C_FLAGS "-fPIC -O3")
     set(CMAKE_CXX_FLAGS "-fPIC -O3")
 endif ()
-
-set(BUILD_SHARED_LIBS OFF CACHE BOOL "Override BUILD_SHARED_LIBS option to OFF")
 
 add_subdirectory(GmSSL EXCLUDE_FROM_ALL)
 

@@ -1,5 +1,5 @@
-#include <covscript/cni.hpp>
 #include <covscript/dll.hpp>
+#include <covscript/cni.hpp>
 #include "gmssl.hpp"
 
 #ifdef WIN32
@@ -35,6 +35,12 @@ void set_stdin_echo(bool enable)
 #endif
 }
 
+template<>
+constexpr const char *cs_impl::get_name_of_type<gmssl::uint8_array_t>()
+{
+	return "bytes_array";
+}
+
 template <>
 std::string cs_impl::to_string<gmssl::uint8_array_t>(const gmssl::uint8_array_t &data)
 {
@@ -45,11 +51,8 @@ CNI_ROOT_NAMESPACE {
 	using namespace gmssl;
 	CNI(set_stdin_echo)
 	CNI(secure_clear)
-	CNI_V(rand_bytes, [](size_t count)
-	{
-		return gmssl::rand_bytes(count);
-	})
-	CNI_V(rand_bytes_s, gmssl::rand_bytes)
+	CNI(rand_chars)
+	CNI_V(rand_bytes, gmssl::rand_bytes)
 	CNI_CONST(bytes_encode)
 	CNI_CONST(bytes_decode)
 	CNI_CONST(hex_encode)
@@ -70,7 +73,9 @@ CNI_ROOT_NAMESPACE {
 	CNI_V(sm2_verify, gmssl::sm2_verify)
 	CNI_V(sm2_encrypt, gmssl::sm2_encrypt)
 	CNI_V(sm2_decrypt, gmssl::sm2_decrypt)
-	CNI(sm3_digest)
+	CNI(sm3)
+	CNI(sm3_hmac)
+	CNI_V(sm3_pbkdf2, gmssl::sm3_pbkdf2)
 	CNI_NAMESPACE(sm4_mode)
 	{
 		CNI_VALUE_CONST(cbc_encrypt, gmssl::sm4_mode::cbc_encrypt)

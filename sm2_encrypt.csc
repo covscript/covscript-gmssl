@@ -30,7 +30,7 @@ var id = "covscript.org.cn"
 while system.in.good()
     system.out.print("Data: ")
     var input_bytes = gmssl.bytes_encode(system.in.getline())
-    system.out.println("SM3 digest: " + gmssl.hex_encode(gmssl.sm3_digest(input_bytes)))
+    system.out.println("SM3 digest: " + gmssl.hex_encode(gmssl.sm3(input_bytes)))
     system.out.println("SM2 signature: " + gmssl.hex_encode(gmssl.sm2_sign(privkey, key, id, input_bytes)))
     var sm2_encrypted = gmssl.sm2_encrypt(pubkey, gmssl.base64_encode(input_bytes))
     system.out.println("SM2 encrypted: " + gmssl.hex_encode(sm2_encrypted))

@@ -34,13 +34,18 @@ while system.in.good()
     var sig = null
     if pubkey != null
         system.out.print("Signature of Data (Optional): ")
-        sig = gmssl.hex_decode(gmssl.bytes_encode(system.in.getline()))
+        sig = system.in.getline()
+        if !sig.empty()
+            sig = gmssl.hex_decode(gmssl.bytes_encode(sig))
+        else
+            sig = null
+        end
     end
     var bytes_data = gmssl.hex_decode(gmssl.bytes_encode(raw_data))
     var decrypted = gmssl.base64_decode(gmssl.sm2_decrypt(privkey, key, bytes_data))
     system.out.println("SM2 decrypted: " + decrypted)
-    if sig != 0
+    if sig != null
         system.out.println("SM2 signature verified: " + gmssl.sm2_verify(pubkey, sig, id, decrypted))
     end
-    system.out.println("SM3 digest: " + gmssl.hex_encode(gmssl.sm3_digest(decrypted)))
+    system.out.println("SM3 digest: " + gmssl.hex_encode(gmssl.sm3(decrypted)))
 end

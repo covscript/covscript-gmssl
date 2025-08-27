@@ -34,13 +34,13 @@ namespace gmssl {
 		gmssl_secure_clear(arr.data(), arr.size());
 	}
 	constexpr size_t buff_size = 2048;
-	std::string rand_bytes(size_t count, std::mt19937::result_type seed = 0)
+	std::string rand_chars(size_t count, std::mt19937::result_type seed = 0)
 	{
 		constexpr char charset[] =
 		    "0123456789"
 		    "abcdefghijklmnopqrstuvwxyz"
 		    "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
-		    "!@#$%^&*()-_=+[]{};:',.<>/?";
+		    "!@#$%^&*-_=+;:,./?";
 		// Skip final '\0'
 		constexpr size_t charset_size = sizeof(charset) / sizeof(charset[0]) - 1;
 
@@ -59,6 +59,15 @@ namespace gmssl {
 			result[i] = charset[dist(generator)];
 
 		return result;
+	}
+	uint8_array_t rand_bytes(size_t count)
+	{
+		uint8_array_t bytes(count);
+		if (::rand_bytes(bytes.data(), count) != 1) {
+			gmssl_secure_clear(bytes.data(), count);
+			throw std::runtime_error("GmSSL generate random bytes failed.");
+		}
+		return std::move(bytes);
 	}
 	inline uint8_array_t bytes_encode(const std::string &str)
 	{
@@ -408,7 +417,7 @@ namespace gmssl {
 
 		return std::move(ret);
 	}
-	uint8_array_t sm3_digest(const uint8_array_t &input_data)
+	uint8_array_t sm3(const uint8_array_t &input_data)
 	{
 		SM3_DIGEST_CTX ctx;
 
@@ -432,6 +441,49 @@ namespace gmssl {
 
 		return raw_hash;
 	}
+	uint8_array_t sm3_hmac(const uint8_array_t &key, const uint8_array_t &input_data)
+	{
+		SM3_DIGEST_CTX ctx;
+
+		if (key.size() > SM3_DIGEST_SIZE)
+			throw std::runtime_error("GmSSL SM3 HMAC key size invalid.");
+
+		if (sm3_digest_init(&ctx, key.data(), key.size()) != 1) {
+			gmssl_secure_clear(&ctx, sizeof(ctx));
+			throw std::runtime_error("GmSSL SM3 HMAC context init failed.");
+		}
+
+		if (sm3_digest_update(&ctx, input_data.data(), input_data.size()) != 1) {
+			gmssl_secure_clear(&ctx, sizeof(ctx));
+			throw std::runtime_error("GmSSL SM3 HMAC update error.");
+		}
+
+		uint8_array_t raw_mac(SM3_DIGEST_SIZE);
+		if (sm3_digest_finish(&ctx, raw_mac.data()) != 1) {
+			gmssl_secure_clear(&ctx, sizeof(ctx));
+			throw std::runtime_error("GmSSL SM3 HMAC finish failed.");
+		}
+
+		gmssl_secure_clear(&ctx, sizeof(ctx));
+
+		return raw_mac;
+	}
+	uint8_array_t sm3_pbkdf2(const std::string &pass, const uint8_array_t &salt, int iter_count, int outlen)
+	{
+		SM3_DIGEST_CTX ctx;
+
+		if (salt.size() > SM3_PBKDF2_MAX_SALT_SIZE || iter_count < 1 || outlen < 1)
+			throw std::runtime_error("GmSSL SM3 PBKDF2 arguments invalid.");
+
+		uint8_array_t outbuf(outlen);
+
+		if (::sm3_pbkdf2(pass.c_str(), pass.size(), salt.data(), salt.size(), iter_count, outlen, outbuf.data()) != 1) {
+			gmssl_secure_clear(outbuf.data(), outlen);
+			throw std::runtime_error("GmSSL SM3 PBKDF2 execution failed.");
+		}
+
+		return outbuf;
+	}
 	enum class sm4_mode : uint8_t {
 		cbc_encrypt = 0b00,
 		cbc_decrypt = 0b01,
@@ -439,7 +491,7 @@ namespace gmssl {
 		ctr_decrypt = 0b11,
 	};
 	constexpr size_t sm4_key_size = SM4_KEY_SIZE;
-	uint8_array_t sm4(sm4_mode action, const std::string &key, const std::string &init_vec, const uint8_array_t &input_bytes)
+	uint8_array_t sm4(sm4_mode action, const uint8_array_t &key, const uint8_array_t &init_vec, const uint8_array_t &input_bytes)
 	{
 		if (key.size() != sm4_key_size || init_vec.size() != sm4_key_size)
 			throw std::runtime_error("GmSSL SM4 key or iv size error.");
@@ -447,17 +499,14 @@ namespace gmssl {
 		if (input_bytes.size() == 0)
 			throw std::runtime_error("GmSSL SM4 data size invalid.");
 
-		const uint8_t *k = reinterpret_cast<const uint8_t *>(key.data());
-		const uint8_t *iv = reinterpret_cast<const uint8_t *>(init_vec.data());
-
 		union {
 			SM4_CBC_CTX cbc;
 			SM4_CTR_CTX ctr;
 		} ctx;
 
-		if (((uint8_t)action & 0b10 ? sm4_ctr_encrypt_init(&ctx.ctr, k, iv) :
-		        ((uint8_t)action & 0b01 ? sm4_cbc_decrypt_init(&ctx.cbc, k, iv) :
-		         sm4_cbc_encrypt_init(&ctx.cbc, k, iv))) != 1) {
+		if (((uint8_t)action & 0b10 ? sm4_ctr_encrypt_init(&ctx.ctr, key.data(), init_vec.data()) :
+		        ((uint8_t)action & 0b01 ? sm4_cbc_decrypt_init(&ctx.cbc, key.data(), init_vec.data()) :
+		         sm4_cbc_encrypt_init(&ctx.cbc, key.data(), init_vec.data()))) != 1) {
 			gmssl_secure_clear(&ctx, sizeof(ctx));
 			throw std::runtime_error("GmSSL SM4 context init failed.");
 		}
