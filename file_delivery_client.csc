@@ -2,12 +2,21 @@ import network
 import gmssl
 
 var addr = context.cmd_args.at(1)
-var trust_dgst = context.cmd_args.at(2)
+var auth_keys = context.cmd_args.at(2)
 var file_path = context.cmd_args.at(3)
 
 using network
 using system
 using iostream
+
+var authorized_keys = {}
+
+var ifs = ifstream(auth_keys)
+while ifs.good()
+    authorized_keys.push_back(ifs.getline())
+end
+
+authorized_keys = authorized_keys.to_hash_set()
 
 function send_request(sock, length)
     var head = to_string(length)
@@ -57,7 +66,7 @@ sock.connect(tcp.endpoint(addr, 1024))
 # authentication
 var pubkey = gmssl.base64_decode(gmssl.bytes_encode(receive_content(sock)))
 var pubkey_digest = gmssl.bytes_decode(gmssl.base64_encode(gmssl.sm3(pubkey)))
-if trust_dgst.toupper() != "ALL" && trust_dgst != pubkey_digest
+if !authorized_keys.exist(pubkey_digest)
     send_content(sock, "AUTH_FAILED")
     system.out.println("Public Key Fingerprint Untrustworthy: " + pubkey_digest)
     system.out.println("Authentication failed.")

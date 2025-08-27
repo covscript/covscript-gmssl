@@ -3,6 +3,6 @@ build/
 cppcodec/
 gmssl/
 cmake-build/
-
+authorized_keys
 *.pem
 *.orig

@@ -26,3 +26,10 @@ gmssl.sm2_pem_write("./sm2-pub.pem", pubkey)
 gmssl.sm2_pem_write("./sm2.pem", privkey)
 
 system.out.println("Keys saved to ./sm2-pub.pem and ./sm2.pem")
+
+var pubkey_digest = gmssl.bytes_decode(gmssl.base64_encode(gmssl.sm3(pubkey)))
+
+var ofs = iostream.fstream("./authorized_keys", iostream.openmode.app)
+ofs.println(pubkey_digest)
+
+system.out.println("Public Key saved to ./authorized_keys")
