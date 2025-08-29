@@ -35,11 +35,24 @@ void set_stdin_echo(bool enable)
 #endif
 }
 
-template<>
+template <>
 constexpr const char *cs_impl::get_name_of_type<gmssl::uint8_array_t>()
 {
 	return "bytes_array";
 }
+
+template <>
+struct cs_impl::type_conversion_cs<gmssl::uint8_array_t> {
+	using source_type = cs::string;
+};
+
+template <>
+struct cs_impl::type_convertor<cs::string, gmssl::uint8_array_t> {
+	static gmssl::uint8_array_t convert(const cs::string &str)
+	{
+		return gmssl::bytes_encode(str);
+	}
+};
 
 template <>
 std::string cs_impl::to_string<gmssl::uint8_array_t>(const gmssl::uint8_array_t &data)
