@@ -1,7 +1,7 @@
 import gmssl
 
 var key = null
-gmssl.set_stdin_echo(false)
+system.console.echo(false)
 loop
     system.out.print("Please set password: ")
     key = system.in.getline()
@@ -18,7 +18,7 @@ loop
         break
     end
 end
-gmssl.set_stdin_echo(true)
+system.console.echo(true)
 
 var (pubkey, privkey) = gmssl.sm2_key_generate(key)
 

@@ -2,39 +2,6 @@
 #include <covscript/cni.hpp>
 #include "gmssl.hpp"
 
-#ifdef WIN32
-#include <windows.h>
-#else
-#include <termios.h>
-#include <unistd.h>
-#endif
-
-void set_stdin_echo(bool enable)
-{
-#ifdef WIN32
-	HANDLE hStdin = GetStdHandle(STD_INPUT_HANDLE);
-	DWORD mode;
-	GetConsoleMode(hStdin, &mode);
-
-	if (!enable)
-		mode &= ~ENABLE_ECHO_INPUT;
-	else
-		mode |= ENABLE_ECHO_INPUT;
-
-	SetConsoleMode(hStdin, mode);
-
-#else
-	struct termios tty;
-	tcgetattr(STDIN_FILENO, &tty);
-	if (!enable)
-		tty.c_lflag &= ~ECHO;
-	else
-		tty.c_lflag |= ECHO;
-
-	(void)tcsetattr(STDIN_FILENO, TCSANOW, &tty);
-#endif
-}
-
 template <>
 constexpr const char *cs_impl::get_name_of_type<gmssl::uint8_array_t>()
 {
@@ -62,7 +29,6 @@ std::string cs_impl::to_string<gmssl::uint8_array_t>(const gmssl::uint8_array_t 
 
 CNI_ROOT_NAMESPACE {
 	using namespace gmssl;
-	CNI(set_stdin_echo)
 	CNI(secure_clear)
 	CNI(rand_chars)
 	CNI_V(rand_bytes, gmssl::rand_bytes)

@@ -1,7 +1,7 @@
 import gmssl
 
 var key = null
-gmssl.set_stdin_echo(false)
+system.console.echo(false)
 loop
     system.out.print("Please set password: ")
     key = system.in.getline()
@@ -18,7 +18,7 @@ loop
         break
     end
 end
-gmssl.set_stdin_echo(true)
+system.console.echo(true)
 key = gmssl.sm3_pbkdf2(key, "covscript", 5, gmssl.sm4_key_size)
 
 var iv = gmssl.rand_chars(gmssl.sm4_key_size, 2333)

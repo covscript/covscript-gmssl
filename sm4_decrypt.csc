@@ -3,7 +3,7 @@ import gmssl
 var text2mode_map = {"cbc": gmssl.sm4_mode.cbc_decrypt, "ctr": gmssl.sm4_mode.ctr_decrypt}.to_hash_map()
 
 var key = null
-gmssl.set_stdin_echo(false)
+system.console.echo(false)
 loop
     system.out.print("Password: ")
     key = system.in.getline()
@@ -15,7 +15,7 @@ loop
         break
     end
 end
-gmssl.set_stdin_echo(true)
+system.console.echo(true)
 key = gmssl.sm3_pbkdf2(key, gmssl.bytes_encode("covscript"), 5, gmssl.sm4_key_size)
 
 system.out.print("SM4 IV: ")
