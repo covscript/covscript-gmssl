@@ -1,7 +1,7 @@
 import gmssl
 
 var key = null
-gmssl.set_stdin_echo(false)
+system.console.echo(false)
 loop
     system.out.print("Please set password: ")
     key = system.in.getline()
@@ -18,15 +18,15 @@ loop
         break
     end
 end
-gmssl.set_stdin_echo(true)
-key = gmssl.sm3_pbkdf2(key, gmssl.bytes_encode("covscript"), 5, gmssl.sm4_key_size)
+system.console.echo(true)
+key = gmssl.sm3_pbkdf2(key, "covscript", 5, gmssl.sm4_key_size)
 
-var iv = gmssl.bytes_encode(gmssl.rand_chars(gmssl.sm4_key_size, 2333))
+var iv = gmssl.rand_chars(gmssl.sm4_key_size, 2333)
 system.out.println("SM4 IV: " + iv)
 
 while system.in.good()
     system.out.print("Data: ")
-    var input_bytes = gmssl.bytes_encode(system.in.getline())
+    var input_bytes = system.in.getline()
     system.out.println("SM3 Digest: " + gmssl.hex_encode(gmssl.sm3(input_bytes)))
     system.out.println("SM3 HMAC Digest: " + gmssl.hex_encode(gmssl.sm3_hmac(key, input_bytes)))
 

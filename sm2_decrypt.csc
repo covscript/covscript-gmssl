@@ -1,7 +1,7 @@
 import gmssl
 
 var key = null
-gmssl.set_stdin_echo(false)
+system.console.echo(false)
 loop
     system.out.print("Password: ")
     key = system.in.getline()
@@ -13,7 +13,7 @@ loop
         break
     end
 end
-gmssl.set_stdin_echo(true)
+system.console.echo(true)
 
 system.out.print("SM2 Public Key (Optional, for signature verification): ")
 var pubkey = system.in.getline()
