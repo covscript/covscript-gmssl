@@ -81,9 +81,10 @@ if session_id_digest1 != session_id_digest2
     system.out.println("Authentication failed.")
     system.exit(0)
 end
+system.out.println("Authentication succeed.")
 
 # transmission
-system.out.println("Authentication succeed. Starting transmission...")
+system.out.println("Starting transmission...")
 var pass = gmssl.rand_bytes(gmssl.sm4_key_size)
 send_content(sock, gmssl.bytes_decode(gmssl.base64_encode(gmssl.sm2_encrypt(pubkey, pass))))
 var iv = gmssl.rand_bytes(gmssl.sm4_key_size)
