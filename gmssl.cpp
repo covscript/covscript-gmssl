@@ -21,11 +21,19 @@ struct cs_impl::type_convertor<cs::string, gmssl::uint8_array_t> {
 	}
 };
 
+#if COVSCRIPT_ABI_VERSION >= 251101
+template <>
+cs::string_borrower cs_impl::to_string<gmssl::uint8_array_t>(const gmssl::uint8_array_t &data)
+{
+	return gmssl::bytes_decode(data);
+}
+#else
 template <>
 std::string cs_impl::to_string<gmssl::uint8_array_t>(const gmssl::uint8_array_t &data)
 {
 	return gmssl::bytes_decode(data);
 }
+#endif
 
 CNI_ROOT_NAMESPACE {
 	using namespace gmssl;
