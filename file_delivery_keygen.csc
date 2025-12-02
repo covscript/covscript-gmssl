@@ -22,8 +22,8 @@ system.console.echo(true)
 
 var (pubkey, privkey) = gmssl.sm2_key_generate(key)
 
-gmssl.sm2_pem_write("./sm2-pub.pem", pubkey)
-gmssl.sm2_pem_write("./sm2.pem", privkey)
+gmssl.sm2_pem_write("./sm2-pub.pem", pubkey, gmssl.pem_name_pbk)
+gmssl.sm2_pem_write("./sm2.pem", privkey, gmssl.pem_name_pvk)
 
 system.out.println("Keys saved to ./sm2-pub.pem and ./sm2.pem")
 

@@ -12,6 +12,9 @@
 #include <vector>
 #include <random>
 #include <cstdio>
+// CovScript SDK
+#include <covscript/dll.hpp>
+#include <covscript/cni.hpp>
 
 /*
  * Pointer to memset is volatile so that compiler must de-reference
@@ -45,7 +48,7 @@ namespace gmssl {
 		constexpr size_t charset_size = sizeof(charset) / sizeof(charset[0]) - 1;
 
 		if (count == 0)
-			throw std::runtime_error("Count == 0");
+			throw cs::lang_error("Count == 0");
 
 		if (seed == 0) {
 			std::random_device rd;
@@ -65,7 +68,7 @@ namespace gmssl {
 		uint8_array_t bytes(count);
 		if (::rand_bytes(bytes.data(), count) != 1) {
 			gmssl_secure_clear(bytes.data(), count);
-			throw std::runtime_error("GmSSL generate random bytes failed.");
+			throw cs::lang_error("GmSSL generate random bytes failed.");
 		}
 		return std::move(bytes);
 	}
@@ -93,19 +96,19 @@ namespace gmssl {
 	{
 		return cppcodec::base64_rfc4648::decode<uint8_array_t>(arr);
 	}
-	uint8_array_t sm2_pem_read(const std::string &path)
+	uint8_array_t sm2_pem_read(const std::string &path, const std::string &name)
 	{
 		FILE *fp = fopen(path.c_str(), "rb");
 		if (!fp)
-			throw std::runtime_error("GmSSL SM2 PEM file can not open.");
+			throw cs::lang_error("GmSSL SM2 PEM file can not open.");
 
 		uint8_array_t buf(buff_size);
 		size_t len = 0;
-		int rc = pem_read(fp, "EC PRIVATE KEY", buf.data(), &len, buf.size());
+		int rc = pem_read(fp, name.c_str(), buf.data(), &len, buf.size());
 		fclose(fp);
 		if (rc != 1) {
 			gmssl_secure_clear(buf.data(), buf.size());
-			throw std::runtime_error("GmSSL SM2 read PEM file failed.");
+			throw cs::lang_error("GmSSL SM2 read PEM file failed.");
 		}
 
 		uint8_array_t ret(buf.begin(), buf.begin() + len);
@@ -114,29 +117,29 @@ namespace gmssl {
 
 		return std::move(ret);
 	}
-	void sm2_pem_write(const std::string &path, const uint8_array_t &data)
+	void sm2_pem_write(const std::string &path, const uint8_array_t &data, const std::string &name)
 	{
 		FILE *fp = fopen(path.c_str(), "wb");
 		if (!fp)
-			throw std::runtime_error("GmSSL SM2 PEM file can not open.");
+			throw cs::lang_error("GmSSL SM2 PEM file can not open.");
 
-		int rc = pem_write(fp, "EC PRIVATE KEY", data.data(), data.size());
+		int rc = pem_write(fp, name.c_str(), data.data(), data.size());
 		fclose(fp);
 		if (rc != 1)
-			throw std::runtime_error("GmSSL SM2 write PEM file failed.");
+			throw cs::lang_error("GmSSL SM2 write PEM file failed.");
 	}
 	void sm2_key_generate(uint8_array_t &pubkey, uint8_array_t &privkey, const std::string &passwd)
 	{
 		SM2_KEY key;
 		if (::sm2_key_generate(&key) != 1)
-			throw std::runtime_error("GmSSL SM2 key generate failed.");
+			throw cs::lang_error("GmSSL SM2 key generate failed.");
 
 		uint8_array_t buf(buff_size);
 		uint8_t *p = buf.data();
 		size_t len = 0;
 		if (sm2_public_key_info_to_der(&key, &p, &len) != 1 || len == 0) {
 			gmssl_secure_clear(buf.data(), buf.size());
-			throw std::runtime_error("GmSSL SM2 public key encode failed.");
+			throw cs::lang_error("GmSSL SM2 public key encode failed.");
 		}
 
 		pubkey.assign(buf.data(), buf.data() + len);
@@ -145,7 +148,7 @@ namespace gmssl {
 		len = 0;
 		if (sm2_private_key_info_encrypt_to_der(&key, passwd.c_str(), &p, &len) != 1 || len == 0) {
 			gmssl_secure_clear(buf.data(), buf.size());
-			throw std::runtime_error("GmSSL SM2 private key encode failed.");
+			throw cs::lang_error("GmSSL SM2 private key encode failed.");
 		}
 
 		privkey.assign(buf.data(), buf.data() + len);
@@ -154,15 +157,15 @@ namespace gmssl {
 	uint8_array_t sm2_sign(const uint8_array_t &privkey, const std::string &passwd, const std::string &id, const uint8_array_t &input_bytes)
 	{
 		if (privkey.size() == 0)
-			throw std::runtime_error("GmSSL SM2 private key is empty.");
+			throw cs::lang_error("GmSSL SM2 private key is empty.");
 
 		if (input_bytes.size() == 0)
-			throw std::runtime_error("GmSSL SM2 data size invalid.");
+			throw cs::lang_error("GmSSL SM2 data size invalid.");
 
 		SM2_KEY key;
 		uint8_array_t keybuf(buff_size);
 		if (privkey.size() > keybuf.size())
-			throw std::runtime_error("GmSSL SM2 private key too large.");
+			throw cs::lang_error("GmSSL SM2 private key too large.");
 
 		std::memcpy(keybuf.data(), privkey.data(), privkey.size());
 		const uint8_t *keyp = keybuf.data();
@@ -173,13 +176,13 @@ namespace gmssl {
 		if (sm2_private_key_info_decrypt_from_der(&key, &attrs, &attrs_len, passwd.c_str(), &keyp, &keylen) != 1) {
 			gmssl_secure_clear(&key, sizeof(key));
 			gmssl_secure_clear(keybuf.data(), keybuf.size());
-			throw std::runtime_error("GmSSL SM2 private key decode failed.");
+			throw cs::lang_error("GmSSL SM2 private key decode failed.");
 		}
 
 		if (!asn1_length_is_zero(keylen)) {
 			gmssl_secure_clear(&key, sizeof(key));
 			gmssl_secure_clear(keybuf.data(), keybuf.size());
-			throw std::runtime_error("GmSSL SM2 extra bytes after private key decode.");
+			throw cs::lang_error("GmSSL SM2 extra bytes after private key decode.");
 		}
 
 		SM2_SIGN_CTX ctx;
@@ -187,7 +190,7 @@ namespace gmssl {
 			gmssl_secure_clear(&key, sizeof(key));
 			gmssl_secure_clear(&ctx, sizeof(ctx));
 			gmssl_secure_clear(keybuf.data(), keybuf.size());
-			throw std::runtime_error("GmSSL SM2 sign init failed.");
+			throw cs::lang_error("GmSSL SM2 sign init failed.");
 		}
 
 		uint8_array_t sig(SM2_MAX_SIGNATURE_SIZE);
@@ -201,7 +204,7 @@ namespace gmssl {
 				gmssl_secure_clear(&ctx, sizeof(ctx));
 				gmssl_secure_clear(keybuf.data(), keybuf.size());
 				gmssl_secure_clear(sig.data(), sig.size());
-				throw std::runtime_error("GmSSL SM2 sign update failed.");
+				throw cs::lang_error("GmSSL SM2 sign update failed.");
 			}
 			offset += inlen;
 		}
@@ -211,7 +214,7 @@ namespace gmssl {
 			gmssl_secure_clear(&ctx, sizeof(ctx));
 			gmssl_secure_clear(keybuf.data(), keybuf.size());
 			gmssl_secure_clear(sig.data(), sig.size());
-			throw std::runtime_error("GmSSL SM2 sign finish failed.");
+			throw cs::lang_error("GmSSL SM2 sign finish failed.");
 		}
 
 		uint8_array_t ret(sig.data(), sig.data() + outlen);
@@ -226,18 +229,18 @@ namespace gmssl {
 	bool sm2_verify(const uint8_array_t &pubkey, const uint8_array_t &sig, const std::string &id, const uint8_array_t &input_bytes)
 	{
 		if (pubkey.size() == 0)
-			throw std::runtime_error("GmSSL SM2 public key is empty.");
+			throw cs::lang_error("GmSSL SM2 public key is empty.");
 
 		if (sig.size() == 0 || sig.size() > SM2_MAX_SIGNATURE_SIZE)
-			throw std::runtime_error("GmSSL SM2 signature size invalid.");
+			throw cs::lang_error("GmSSL SM2 signature size invalid.");
 
 		if (input_bytes.size() == 0)
-			throw std::runtime_error("GmSSL SM2 data size invalid.");
+			throw cs::lang_error("GmSSL SM2 data size invalid.");
 
 		SM2_KEY key;
 		uint8_array_t keybuf(buff_size);
 		if (pubkey.size() > keybuf.size())
-			throw std::runtime_error("GmSSL SM2 public key too large.");
+			throw cs::lang_error("GmSSL SM2 public key too large.");
 
 		std::memcpy(keybuf.data(), pubkey.data(), pubkey.size());
 		const uint8_t *keyp = keybuf.data();
@@ -245,13 +248,13 @@ namespace gmssl {
 		if (sm2_public_key_info_from_der(&key, &keyp, &keylen) != 1) {
 			gmssl_secure_clear(&key, sizeof(key));
 			gmssl_secure_clear(keybuf.data(), keybuf.size());
-			throw std::runtime_error("GmSSL SM2 public key decode failed.");
+			throw cs::lang_error("GmSSL SM2 public key decode failed.");
 		}
 
 		if (!asn1_length_is_zero(keylen)) {
 			gmssl_secure_clear(&key, sizeof(key));
 			gmssl_secure_clear(keybuf.data(), keybuf.size());
-			throw std::runtime_error("GmSSL SM2 extra bytes after public key decode.");
+			throw cs::lang_error("GmSSL SM2 extra bytes after public key decode.");
 		}
 
 		SM2_VERIFY_CTX ctx;
@@ -259,7 +262,7 @@ namespace gmssl {
 			gmssl_secure_clear(&key, sizeof(key));
 			gmssl_secure_clear(&ctx, sizeof(ctx));
 			gmssl_secure_clear(keybuf.data(), keybuf.size());
-			throw std::runtime_error("GmSSL SM2 verify init failed.");
+			throw cs::lang_error("GmSSL SM2 verify init failed.");
 		}
 
 		size_t offset = 0;
@@ -270,7 +273,7 @@ namespace gmssl {
 				gmssl_secure_clear(&key, sizeof(key));
 				gmssl_secure_clear(&ctx, sizeof(ctx));
 				gmssl_secure_clear(keybuf.data(), keybuf.size());
-				throw std::runtime_error("GmSSL SM2 verify update failed.");
+				throw cs::lang_error("GmSSL SM2 verify update failed.");
 			}
 			offset += inlen;
 		}
@@ -278,7 +281,7 @@ namespace gmssl {
 		int vr = sm2_verify_finish(&ctx, sig.data(), sig.size());
 
 		if (vr < 0)
-			throw std::runtime_error("GmSSL SM2 verify finish failed.");
+			throw cs::lang_error("GmSSL SM2 verify finish failed.");
 
 		gmssl_secure_clear(&key, sizeof(key));
 		gmssl_secure_clear(&ctx, sizeof(ctx));
@@ -289,15 +292,15 @@ namespace gmssl {
 	uint8_array_t sm2_encrypt(const uint8_array_t &pubkey, const uint8_array_t &input_data)
 	{
 		if (pubkey.size() == 0)
-			throw std::runtime_error("GmSSL SM2 public key is empty.");
+			throw cs::lang_error("GmSSL SM2 public key is empty.");
 
 		if (input_data.size() == 0 || input_data.size() > SM2_MAX_PLAINTEXT_SIZE)
-			throw std::runtime_error("GmSSL SM2 plaintext size invalid.");
+			throw cs::lang_error("GmSSL SM2 plaintext size invalid.");
 
 		SM2_KEY key;
 		uint8_array_t keybuf(buff_size);
 		if (pubkey.size() > keybuf.size())
-			throw std::runtime_error("GmSSL SM2 public key too large.");
+			throw cs::lang_error("GmSSL SM2 public key too large.");
 
 		std::memcpy(keybuf.data(), pubkey.data(), pubkey.size());
 		const uint8_t *keyp = keybuf.data();
@@ -305,13 +308,13 @@ namespace gmssl {
 		if (sm2_public_key_info_from_der(&key, &keyp, &keylen) != 1) {
 			gmssl_secure_clear(&key, sizeof(key));
 			gmssl_secure_clear(keybuf.data(), keybuf.size());
-			throw std::runtime_error("GmSSL SM2 public key decode failed.");
+			throw cs::lang_error("GmSSL SM2 public key decode failed.");
 		}
 
 		if (!asn1_length_is_zero(keylen)) {
 			gmssl_secure_clear(&key, sizeof(key));
 			gmssl_secure_clear(keybuf.data(), keybuf.size());
-			throw std::runtime_error("GmSSL SM2 extra bytes after public key decode.");
+			throw cs::lang_error("GmSSL SM2 extra bytes after public key decode.");
 		}
 
 		SM2_ENC_CTX ctx;
@@ -319,7 +322,7 @@ namespace gmssl {
 			gmssl_secure_clear(&key, sizeof(key));
 			gmssl_secure_clear(&ctx, sizeof(ctx));
 			gmssl_secure_clear(keybuf.data(), keybuf.size());
-			throw std::runtime_error("GmSSL SM2 encrypt init failed.");
+			throw cs::lang_error("GmSSL SM2 encrypt init failed.");
 		}
 
 		uint8_array_t outbuf(SM2_MAX_CIPHERTEXT_SIZE);
@@ -330,7 +333,7 @@ namespace gmssl {
 			gmssl_secure_clear(&ctx, sizeof(ctx));
 			gmssl_secure_clear(keybuf.data(), keybuf.size());
 			gmssl_secure_clear(outbuf.data(), outbuf.size());
-			throw std::runtime_error("GmSSL SM2 encrypt update failed.");
+			throw cs::lang_error("GmSSL SM2 encrypt update failed.");
 		}
 
 		if (sm2_encrypt_finish(&ctx, &key, outbuf.data(), &outlen) != 1) {
@@ -338,7 +341,7 @@ namespace gmssl {
 			gmssl_secure_clear(&ctx, sizeof(ctx));
 			gmssl_secure_clear(keybuf.data(), keybuf.size());
 			gmssl_secure_clear(outbuf.data(), outbuf.size());
-			throw std::runtime_error("GmSSL SM2 encrypt finish failed.");
+			throw cs::lang_error("GmSSL SM2 encrypt finish failed.");
 		}
 
 		uint8_array_t ret(outbuf.begin(), outbuf.begin() + outlen);
@@ -353,15 +356,15 @@ namespace gmssl {
 	uint8_array_t sm2_decrypt(const uint8_array_t &privkey, const std::string &passwd, const uint8_array_t &input_data)
 	{
 		if (privkey.size() == 0)
-			throw std::runtime_error("GmSSL SM2 private key is empty.");
+			throw cs::lang_error("GmSSL SM2 private key is empty.");
 
 		if (input_data.size() == 0 || input_data.size() > SM2_MAX_CIPHERTEXT_SIZE)
-			throw std::runtime_error("GmSSL SM2 ciphertext size invalid.");
+			throw cs::lang_error("GmSSL SM2 ciphertext size invalid.");
 
 		SM2_KEY key;
 		uint8_array_t keybuf(buff_size);
 		if (privkey.size() > keybuf.size())
-			throw std::runtime_error("GmSSL SM2 private key too large.");
+			throw cs::lang_error("GmSSL SM2 private key too large.");
 
 		std::memcpy(keybuf.data(), privkey.data(), privkey.size());
 		const uint8_t *keyp = keybuf.data();
@@ -372,13 +375,13 @@ namespace gmssl {
 		if (sm2_private_key_info_decrypt_from_der(&key, &attrs, &attrs_len, passwd.c_str(), &keyp, &keylen) != 1) {
 			gmssl_secure_clear(&key, sizeof(key));
 			gmssl_secure_clear(keybuf.data(), keybuf.size());
-			throw std::runtime_error("GmSSL SM2 private key decode failed.");
+			throw cs::lang_error("GmSSL SM2 private key decode failed.");
 		}
 
 		if (!asn1_length_is_zero(keylen)) {
 			gmssl_secure_clear(&key, sizeof(key));
 			gmssl_secure_clear(keybuf.data(), keybuf.size());
-			throw std::runtime_error("GmSSL SM2 extra bytes after private key decode.");
+			throw cs::lang_error("GmSSL SM2 extra bytes after private key decode.");
 		}
 
 		SM2_DEC_CTX ctx;
@@ -386,7 +389,7 @@ namespace gmssl {
 			gmssl_secure_clear(&key, sizeof(key));
 			gmssl_secure_clear(&ctx, sizeof(ctx));
 			gmssl_secure_clear(keybuf.data(), keybuf.size());
-			throw std::runtime_error("GmSSL SM2 decrypt init failed.");
+			throw cs::lang_error("GmSSL SM2 decrypt init failed.");
 		}
 
 		uint8_array_t outbuf(SM2_MAX_CIPHERTEXT_SIZE);
@@ -397,7 +400,7 @@ namespace gmssl {
 			gmssl_secure_clear(&ctx, sizeof(ctx));
 			gmssl_secure_clear(keybuf.data(), keybuf.size());
 			gmssl_secure_clear(outbuf.data(), outbuf.size());
-			throw std::runtime_error("GmSSL SM2 decrypt update failed.");
+			throw cs::lang_error("GmSSL SM2 decrypt update failed.");
 		}
 
 		if (sm2_decrypt_finish(&ctx, &key, outbuf.data(), &outlen) != 1) {
@@ -405,7 +408,7 @@ namespace gmssl {
 			gmssl_secure_clear(&ctx, sizeof(ctx));
 			gmssl_secure_clear(keybuf.data(), keybuf.size());
 			gmssl_secure_clear(outbuf.data(), outbuf.size());
-			throw std::runtime_error("GmSSL SM2 decrypt finish failed.");
+			throw cs::lang_error("GmSSL SM2 decrypt finish failed.");
 		}
 
 		uint8_array_t ret(outbuf.begin(), outbuf.begin() + outlen);
@@ -423,18 +426,18 @@ namespace gmssl {
 
 		if (sm3_digest_init(&ctx, nullptr, 0) != 1) {
 			gmssl_secure_clear(&ctx, sizeof(ctx));
-			throw std::runtime_error("GmSSL SM3 context init failed.");
+			throw cs::lang_error("GmSSL SM3 context init failed.");
 		}
 
 		if (sm3_digest_update(&ctx, input_data.data(), input_data.size()) != 1) {
 			gmssl_secure_clear(&ctx, sizeof(ctx));
-			throw std::runtime_error("GmSSL SM3 update error.");
+			throw cs::lang_error("GmSSL SM3 update error.");
 		}
 
 		uint8_array_t raw_hash(SM3_DIGEST_SIZE);
 		if (sm3_digest_finish(&ctx, raw_hash.data()) != 1) {
 			gmssl_secure_clear(&ctx, sizeof(ctx));
-			throw std::runtime_error("GmSSL SM3 finish failed.");
+			throw cs::lang_error("GmSSL SM3 finish failed.");
 		}
 
 		gmssl_secure_clear(&ctx, sizeof(ctx));
@@ -446,22 +449,22 @@ namespace gmssl {
 		SM3_DIGEST_CTX ctx;
 
 		if (key.size() > SM3_DIGEST_SIZE)
-			throw std::runtime_error("GmSSL SM3 HMAC key size invalid.");
+			throw cs::lang_error("GmSSL SM3 HMAC key size invalid.");
 
 		if (sm3_digest_init(&ctx, key.data(), key.size()) != 1) {
 			gmssl_secure_clear(&ctx, sizeof(ctx));
-			throw std::runtime_error("GmSSL SM3 HMAC context init failed.");
+			throw cs::lang_error("GmSSL SM3 HMAC context init failed.");
 		}
 
 		if (sm3_digest_update(&ctx, input_data.data(), input_data.size()) != 1) {
 			gmssl_secure_clear(&ctx, sizeof(ctx));
-			throw std::runtime_error("GmSSL SM3 HMAC update error.");
+			throw cs::lang_error("GmSSL SM3 HMAC update error.");
 		}
 
 		uint8_array_t raw_mac(SM3_DIGEST_SIZE);
 		if (sm3_digest_finish(&ctx, raw_mac.data()) != 1) {
 			gmssl_secure_clear(&ctx, sizeof(ctx));
-			throw std::runtime_error("GmSSL SM3 HMAC finish failed.");
+			throw cs::lang_error("GmSSL SM3 HMAC finish failed.");
 		}
 
 		gmssl_secure_clear(&ctx, sizeof(ctx));
@@ -473,13 +476,13 @@ namespace gmssl {
 		SM3_DIGEST_CTX ctx;
 
 		if (salt.size() > SM3_PBKDF2_MAX_SALT_SIZE || iter_count < 1 || outlen < 1)
-			throw std::runtime_error("GmSSL SM3 PBKDF2 arguments invalid.");
+			throw cs::lang_error("GmSSL SM3 PBKDF2 arguments invalid.");
 
 		uint8_array_t outbuf(outlen);
 
 		if (::sm3_pbkdf2(pass.c_str(), pass.size(), salt.data(), salt.size(), iter_count, outlen, outbuf.data()) != 1) {
 			gmssl_secure_clear(outbuf.data(), outlen);
-			throw std::runtime_error("GmSSL SM3 PBKDF2 execution failed.");
+			throw cs::lang_error("GmSSL SM3 PBKDF2 execution failed.");
 		}
 
 		return outbuf;
@@ -494,10 +497,10 @@ namespace gmssl {
 	uint8_array_t sm4(sm4_mode action, const uint8_array_t &key, const uint8_array_t &init_vec, const uint8_array_t &input_bytes)
 	{
 		if (key.size() != sm4_key_size || init_vec.size() != sm4_key_size)
-			throw std::runtime_error("GmSSL SM4 key or iv size error.");
+			throw cs::lang_error("GmSSL SM4 key or iv size error.");
 
 		if (input_bytes.size() == 0)
-			throw std::runtime_error("GmSSL SM4 data size invalid.");
+			throw cs::lang_error("GmSSL SM4 data size invalid.");
 
 		union {
 			SM4_CBC_CTX cbc;
@@ -508,7 +511,7 @@ namespace gmssl {
 		        ((uint8_t)action & 0b01 ? sm4_cbc_decrypt_init(&ctx.cbc, key.data(), init_vec.data()) :
 		         sm4_cbc_encrypt_init(&ctx.cbc, key.data(), init_vec.data()))) != 1) {
 			gmssl_secure_clear(&ctx, sizeof(ctx));
-			throw std::runtime_error("GmSSL SM4 context init failed.");
+			throw cs::lang_error("GmSSL SM4 context init failed.");
 		}
 
 		uint8_array_t output_bytes;
@@ -524,7 +527,7 @@ namespace gmssl {
 				gmssl_secure_clear(&ctx, sizeof(ctx));
 				gmssl_secure_clear(output_bytes.data(), output_bytes.size());
 				gmssl_secure_clear(buff.data(), buff_size);
-				throw std::runtime_error((uint8_t)action & 0b01 ? "GmSSL SM4 decrypt error." : "GmSSL SM4 encrypt error.");
+				throw cs::lang_error((uint8_t)action & 0b01 ? "GmSSL SM4 decrypt error." : "GmSSL SM4 encrypt error.");
 			}
 
 			if (outlen > 0)
@@ -539,7 +542,7 @@ namespace gmssl {
 			gmssl_secure_clear(&ctx, sizeof(ctx));
 			gmssl_secure_clear(output_bytes.data(), output_bytes.size());
 			gmssl_secure_clear(buff.data(), buff_size);
-			throw std::runtime_error((uint8_t)action & 0b01 ? "GmSSL SM4 decrypt finish failed." : "GmSSL SM4 encrypt finish failed.");
+			throw cs::lang_error((uint8_t)action & 0b01 ? "GmSSL SM4 decrypt finish failed." : "GmSSL SM4 encrypt finish failed.");
 		}
 
 		if (outlen > 0)

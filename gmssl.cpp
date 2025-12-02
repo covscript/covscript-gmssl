@@ -1,5 +1,3 @@
-#include <covscript/dll.hpp>
-#include <covscript/cni.hpp>
 #include "gmssl.hpp"
 
 template <>
@@ -48,6 +46,8 @@ CNI_ROOT_NAMESPACE {
 	CNI_CONST(base64_decode)
 	CNI(sm2_pem_read)
 	CNI(sm2_pem_write)
+	CNI_VALUE_CONST(pem_name_pbk, "PUBLIC KEY")
+	CNI_VALUE_CONST(pem_name_pvk, "EC PRIVATE KEY")
 	cs::var sm2_key_generate_impl(const std::string &passwd)
 	{
 		cs::var pubkey = cs::var::make<uint8_array_t>();

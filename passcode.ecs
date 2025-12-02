@@ -1,0 +1,227 @@
+@charset: utf8
+
+import imgui, imgui_font
+import gmssl
+import regex
+
+constant salt = "covscript_passcode"
+constant pem_cutoff = 32
+
+function key2pem(key, name)
+    var data = "-----BEGIN " + name + "-----\n"
+    var pem = gmssl.bytes_decode(gmssl.base64_encode(key))
+    foreach i in range(0, pem.size, pem_cutoff)
+        data.append(pem.substr(i, pem_cutoff))
+        data.append("\n")
+    end
+    data.append("-----END " + name + "-----\n")
+    return data
+end
+
+var pem_reg = regex.build_optimize("^-+(BEGIN|END)[^-]+-+$")
+
+function pem2key(pem)
+    var data = pem.split({'\n'})
+    var base64_data = new string
+    foreach line in data
+        line = line.trim()
+        if pem_reg.match(line).empty()
+            base64_data.append(line)
+        end
+    end
+    return gmssl.base64_decode(gmssl.bytes_encode(base64_data))
+end
+
+function do_encrypt(text, iv, pbk)
+    var bytes_iv = gmssl.hex_decode(gmssl.bytes_encode(iv))
+    var data = gmssl.bytes_decode(gmssl.base64_encode(gmssl.sm2_encrypt(pem2key(pbk), bytes_iv)))
+    data.append("&")
+    var sm4_pass = gmssl.sm3_pbkdf2(iv, salt, 5, gmssl.sm4_key_size)
+    data.append(gmssl.bytes_decode(gmssl.base64_encode(gmssl.sm4(gmssl.sm4_mode.ctr_encrypt, sm4_pass, bytes_iv, text))))
+    return key2pem(data, "EC PASSCODE")
+end
+
+class decrypt_exception
+    var error_text = new string
+    function construct(msg)
+        error_text = to_string(msg)
+    end
+    function what()
+        return error_text
+    end
+end
+
+function do_decrypt(text, pvk, pass)
+    if text.empty()
+        throw new decrypt_exception{"Data fis empty."}
+    end
+    var data = gmssl.bytes_decode(pem2key(text)), bytes_iv = null
+    var pos = data.find("&", 0)
+    if pos == -1
+        throw new decrypt_exception{"Data format error."}
+    end
+    bytes_iv = data.substr(0, pos)
+    data = data.substr(pos + 1, data.size - pos)
+    bytes_iv = gmssl.sm2_decrypt(pem2key(pvk), pass, gmssl.base64_decode(gmssl.bytes_encode(bytes_iv)))
+    var iv = gmssl.bytes_decode(gmssl.hex_encode(bytes_iv))
+    var sm4_pass = gmssl.sm3_pbkdf2(iv, salt, 5, gmssl.sm4_key_size)
+    return gmssl.bytes_decode(gmssl.sm4(gmssl.sm4_mode.ctr_decrypt, sm4_pass, bytes_iv, gmssl.base64_decode(gmssl.bytes_encode(data))))
+end
+
+using imgui
+
+var geometry = vec2(800, 600)
+
+var app = window_application(geometry.x, geometry.y, "CovScript Passcode")
+var font = add_font_extend_cn(imgui_font.source_han_sans, 16)
+
+var plain_texts = ""
+var encrypted_texts = ""
+var pubkey = ""
+var privkey = ""
+var init_vec = ""
+var passwd = ""
+var passwd0 = ""
+var passwd1 = ""
+
+function gen_init_vec()
+    init_vec = gmssl.bytes_decode(gmssl.hex_encode(gmssl.rand_bytes(gmssl.sm4_key_size)))
+end
+
+gen_init_vec()
+
+var window_opened = true
+var get_passwd_window_callback = null
+var set_passwd_window_callback = null
+var error_message = null
+
+var popup_queue = new array
+
+function open_popup_queued(id)
+    popup_queue.push_front(id)
+end
+
+while !app.is_closed()
+	app.prepare()
+	push_font(font)
+    begin_window("国密 SSL 工具", window_opened, {flags.no_resize, flags.no_collapse})
+        if !window_opened
+            break
+        end
+        set_window_size(vec2(app.get_window_width(), app.get_window_height()))
+        set_window_pos(vec2(0, 0))
+        style_color_light()
+        if button("生成##gen_btn0")
+            gen_init_vec()
+        end
+        same_line()
+        input_text_s("SM4 IV##init_vec", init_vec, 0, {flags.read_only})
+        begin_group()
+            push_item_width(0.49*get_window_content_region_width())
+            text("待加密文本")
+            input_text_multiline_s("##plain_texts", plain_texts, 0, {flags.allow_tab})
+            if button("加密")
+                try
+                    encrypted_texts = do_encrypt(plain_texts, init_vec, pubkey)
+                    plain_texts = ""
+                catch e
+                    open_popup_queued("错误##error")
+                    error_message = e.what()
+                end
+            end
+            text("国密 SM2 公钥 (.pem)")
+            input_text_multiline_s("##pubkey", pubkey, 0, {})
+            pop_item_width()
+        end_group()
+        same_line()
+        begin_group()
+            push_item_width(0.49*get_window_content_region_width())
+            text("已加密数据")
+            input_text_multiline_s("##encrypted_texts", encrypted_texts, 0, {})
+            if button("解密")
+                get_passwd_window_callback = [](passwd){
+                    try
+                        plain_texts = do_decrypt(encrypted_texts, privkey, passwd)
+                    catch e
+                        open_popup_queued("错误##error")
+                        error_message = e.what()
+                    end
+                }
+                open_popup_queued("请输入密码##get_passwd_popup")
+            end
+            text("国密 SM2 私钥 (.pem)")
+            input_text_multiline_s("##privkey", privkey, 0, {})
+            pop_item_width()
+        end_group()
+        if button("生成##gen_btn1")
+            set_passwd_window_callback = [](passwd){
+                (pubkey, privkey) = gmssl.sm2_key_generate(passwd)
+                pubkey = key2pem(pubkey, gmssl.pem_name_pbk)
+                privkey = key2pem(privkey, gmssl.pem_name_pvk)
+            }
+            open_popup_queued("请设置密码##set_passwd_popup")
+        end
+        while !popup_queue.empty()
+            open_popup(popup_queue.pop_back())
+        end
+        if begin_popup_modal("请输入密码##get_passwd_popup", new boolean, {flags.no_move, flags.always_auto_resize})
+            input_text_hint_s("##passwd", "密码", passwd, 0, {flags.password})
+            same_line()
+            if button("清除##btn0")
+                passwd.clear()
+            end
+            if passwd.size < 6
+                text_colored(vec4(255, 0, 0, 255), "密码长度不足") 
+            else if button("确认##btn1")
+                if get_passwd_window_callback != null
+                    get_passwd_window_callback(passwd)
+                    get_passwd_window_callback = null
+                    passwd.clear()
+                end
+                close_current_popup()
+            end
+            end_popup()
+        end
+        if begin_popup_modal("请设置密码##set_passwd_popup", new boolean, {flags.no_move, flags.always_auto_resize})
+            input_text_hint_s("##passwd0", "设置密码", passwd0, 0, {flags.password})
+            same_line()
+            if button("清除##btn2")
+                passwd0.clear()
+            end
+            input_text_hint_s("##passwd1", "确认密码", passwd1, 0, {flags.password})
+            same_line()
+            if button("清除##btn3")
+                passwd1.clear()
+            end
+            if passwd0.size < 6
+                text_colored(vec4(255, 0, 0, 255), "密码长度不足")    
+            else if passwd0 != passwd1
+                text_colored(vec4(255, 0, 0, 255), "密码不一致")
+            else if button("确认##btn4")
+                if set_passwd_window_callback != null
+                    set_passwd_window_callback(passwd1)
+                    set_passwd_window_callback = null
+                    passwd0.clear()
+                    passwd1.clear()
+                end
+                close_current_popup()
+            end
+            set_window_pos(vec2(0.5*(app.get_window_width() - get_window_width()), 0.5*(app.get_window_height() - get_window_height())))
+            end_popup()
+        end
+        if begin_popup_modal("错误##error", new boolean, {flags.no_move, flags.always_auto_resize})
+            text(error_message)
+            if button("朕知道了##btn5")
+                close_current_popup()
+            end
+            same_line()
+            if button("快快退下##btn6")
+                system.exit(0)
+            end
+            set_window_pos(vec2(0.5*(app.get_window_width() - get_window_width()), 0.5*(app.get_window_height() - get_window_height())))
+            end_popup()
+        end
+    end_window()
+    pop_font()
+	app.render()
+end

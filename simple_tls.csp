@@ -63,8 +63,8 @@ class server
     # integer port: Port to be listened.
 
     function listen(pkey_path, vkey_path, keypass, addr, port)
-        pkey = gmssl.sm2_pem_read(pkey_path)
-        vkey = gmssl.sm2_pem_read(vkey_path)
+        pkey = gmssl.sm2_pem_read(pkey_path, gmssl.pem_name_pbk)
+        vkey = gmssl.sm2_pem_read(vkey_path, gmssl.pem_name_pvk)
         vkeypass = keypass
         sock = new network.tcp.socket
         acpt = network.tcp.acceptor(network.tcp.endpoint(addr, port))

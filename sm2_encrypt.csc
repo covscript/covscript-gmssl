@@ -22,8 +22,8 @@ system.console.echo(true)
 
 var (pubkey, privkey) = gmssl.sm2_key_generate(key)
 
-system.out.println("SM2 Public Key: " + gmssl.hex_encode(pubkey))
-system.out.println("SM2 Private Key: " + gmssl.hex_encode(privkey))
+system.out.println("SM2 Public Key: " + gmssl.base64_encode(pubkey))
+system.out.println("SM2 Private Key: " + gmssl.base64_encode(privkey))
 
 var id = "covscript.org.cn"
 

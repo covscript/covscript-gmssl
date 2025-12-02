@@ -28,6 +28,8 @@ endif ()
 
 add_subdirectory(GmSSL EXCLUDE_FROM_ALL)
 
+target_compile_definitions(gmssl PUBLIC -DDEBUG=0)
+
 add_library(covscript-gmssl SHARED gmssl.cpp)
 
 target_link_libraries(covscript-gmssl gmssl covscript)

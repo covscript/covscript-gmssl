@@ -2,8 +2,8 @@ import network
 import gmssl
 
 var addr = context.cmd_args.at(1)
-var pubkey = gmssl.sm2_pem_read(context.cmd_args.at(2))
-var privkey = gmssl.sm2_pem_read(context.cmd_args.at(3))
+var pubkey = gmssl.sm2_pem_read(context.cmd_args.at(2), gmssl.pem_name_pbk)
+var privkey = gmssl.sm2_pem_read(context.cmd_args.at(3), gmssl.pem_name_pvk)
 var keypass = context.cmd_args.at(4)
 
 using network
