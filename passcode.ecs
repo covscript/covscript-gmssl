@@ -68,6 +68,49 @@ function do_decrypt(text, pvk, pass)
     return gmssl.bytes_decode(gmssl.sm4(gmssl.sm4_mode.ctr_decrypt, sm4_pass, bytes_iv, gmssl.base64_decode(gmssl.bytes_encode(data))))
 end
 
+function user_home()
+    if system.is_platform_windows()
+        return system.getenv("USERPROFILE")
+    else
+        return system.getenv("HOME")
+    end
+end
+
+function covscript_home()
+    try
+        return system.getenv("COVSCRIPT_HOME")
+    catch e
+    end
+    if system.is_platform_windows()
+        return user_home() + system.path.separator + "Documents" + system.path.separator + "CovScript"
+    else
+        return user_home() + system.path.separator + ".covscript"
+    end
+end
+
+var ssl_home = covscript_home() + system.path.separator + "ssl" + system.path.separator
+
+function file_can_read(path)
+    return system.path.is_file(path) && system.file.can_read(path)
+end
+
+function read_file(path)
+    var ifs = iostream.fstream(path, iostream.openmode.bin_in)
+    var data = new string
+    while ifs.good()
+        # Read 256KB per iteration
+        data.append(ifs.read(262144))
+    end
+    return move(data)
+end
+
+function write_file(path, data)
+    var ofs = iostream.fstream(path, iostream.openmode.bin_out)
+    if ofs.good()
+        ofs.write(data)
+    end
+end
+
 using imgui
 
 var geometry = vec2(800, 600)
@@ -91,9 +134,14 @@ end
 gen_init_vec()
 
 var window_opened = true
+var pem_readonly = true
 var get_passwd_window_callback = null
 var set_passwd_window_callback = null
+var info_message = null
 var error_message = null
+
+var pem_input_text_flags = {}
+var pem_input_text_readonly_flags = {flags.read_only}
 
 var popup_queue = new array
 
@@ -124,13 +172,18 @@ while !app.is_closed()
                 try
                     encrypted_texts = do_encrypt(plain_texts, init_vec, pubkey)
                     plain_texts = ""
+                    gen_init_vec()
                 catch e
                     open_popup_queued("错误##error")
                     error_message = e.what()
                 end
             end
+            same_line()
+            if button("清除##btn4")
+                plain_texts = ""
+            end
             text("国密 SM2 公钥 (.pem)")
-            input_text_multiline_s("##pubkey", pubkey, 0, {})
+            input_text_multiline_s("##pubkey", pubkey, 0, pem_readonly ? pem_input_text_readonly_flags : pem_input_text_flags)
             pop_item_width()
         end_group()
         same_line()
@@ -149,18 +202,49 @@ while !app.is_closed()
                 }
                 open_popup_queued("请输入密码##get_passwd_popup")
             end
+            same_line()
+            if button("清除##btn5")
+                encrypted_texts = ""
+            end
             text("国密 SM2 私钥 (.pem)")
-            input_text_multiline_s("##privkey", privkey, 0, {})
+            input_text_multiline_s("##privkey", privkey, 0, pem_readonly ? pem_input_text_readonly_flags : pem_input_text_flags)
             pop_item_width()
         end_group()
+        text("CovScript SSL 目录：" + ssl_home)
+        if button("读取##ssl_btn0")
+            if file_can_read(ssl_home + "passcode_pbk.pem") && file_can_read(ssl_home + "passcode_pvk.pem")
+                pubkey = read_file(ssl_home + "passcode_pbk.pem")
+                privkey = read_file(ssl_home + "passcode_pvk.pem")
+                pem_readonly = true
+            else
+                open_popup_queued("错误##error")
+                error_message = "File can not read or does not exists."
+            end
+        end
+        same_line()
         if button("生成##gen_btn1")
             set_passwd_window_callback = [](passwd){
                 (pubkey, privkey) = gmssl.sm2_key_generate(passwd)
                 pubkey = key2pem(pubkey, gmssl.pem_name_pbk)
                 privkey = key2pem(privkey, gmssl.pem_name_pvk)
+                pem_readonly = true
             }
             open_popup_queued("请设置密码##set_passwd_popup")
         end
+        same_line()
+        if button("保存##ssl_btn1")
+            if pubkey.empty() || privkey.empty()
+                open_popup_queued("错误##error")
+                error_message = "Public key or private key is empty."
+            else
+                system.path.mkdir_p(ssl_home)
+                write_file(ssl_home + "passcode_pbk.pem", pubkey)
+                write_file(ssl_home + "passcode_pvk.pem", privkey)
+                open_popup_queued("信息##info")
+                info_message = "保存成功"
+            end
+        end
+        check_box("密钥只读", pem_readonly)
         while !popup_queue.empty()
             open_popup(popup_queue.pop_back())
         end
@@ -204,6 +288,14 @@ while !app.is_closed()
                     passwd0.clear()
                     passwd1.clear()
                 end
+                close_current_popup()
+            end
+            set_window_pos(vec2(0.5*(app.get_window_width() - get_window_width()), 0.5*(app.get_window_height() - get_window_height())))
+            end_popup()
+        end
+        if begin_popup_modal("信息##info", new boolean, {flags.no_move, flags.always_auto_resize})
+            text(info_message)
+            if button("朕知道了##btn5")
                 close_current_popup()
             end
             set_window_pos(vec2(0.5*(app.get_window_width() - get_window_width()), 0.5*(app.get_window_height() - get_window_height())))
