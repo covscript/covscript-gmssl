@@ -13,7 +13,9 @@ set(ENABLE_SM4_XTS OFF CACHE BOOL "Override ENABLE_SM4_XTS option to OFF")
 set(ENABLE_SM3_XMSS OFF CACHE BOOL "Override ENABLE_SM3_XMSS option to OFF")
 set(ENABLE_SHA1 OFF CACHE BOOL "Override ENABLE_SHA1 option to OFF")
 set(ENABLE_SHA2 OFF CACHE BOOL "Override ENABLE_SHA2 option to OFF")
+set(ENABLE_AES_CCM OFF CACHE BOOL "Override ENABLE_AES_CCM option to OFF")
 set(ENABLE_AES OFF CACHE BOOL "Override ENABLE_AES option to OFF")
+set(ENABLE_TLS OFF CACHE BOOL "Override ENABLE_TLS option to OFF")
 
 include_directories(GmSSL/include)
 
