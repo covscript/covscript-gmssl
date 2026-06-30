@@ -19,7 +19,7 @@ loop
     end
 end
 system.console.echo(true)
-key = gmssl.sm3_pbkdf2(key, "covscript", 5, gmssl.sm4_key_size)
+key = gmssl.sm3_pbkdf2(key, gmssl.bytes_encode("covscript"), gmssl.sm3_pbkdf2_min_iter, gmssl.sm4_key_size)
 
 var iv = gmssl.rand_chars(gmssl.sm4_key_size, 2333)
 system.out.println("SM4 IV: " + iv)

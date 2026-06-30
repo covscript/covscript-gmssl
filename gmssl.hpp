@@ -6,6 +6,8 @@
 #include <gmssl/sm2.h>
 #include <gmssl/sm3.h>
 #include <gmssl/sm4.h>
+#include <gmssl/sm4_cbc_mac.h>
+#include <gmssl/zuc.h>
 #include <stdexcept>
 #include <cstring>
 #include <string>
@@ -154,6 +156,7 @@ namespace gmssl {
 		privkey.assign(buf.data(), buf.data() + len);
 		gmssl_secure_clear(buf.data(), buf.size());
 	}
+	constexpr size_t sm2_max_signature_size = SM2_MAX_SIGNATURE_SIZE;
 	uint8_array_t sm2_sign(const uint8_array_t &privkey, const std::string &passwd, const std::string &id, const uint8_array_t &input_bytes)
 	{
 		if (privkey.size() == 0)
@@ -193,7 +196,7 @@ namespace gmssl {
 			throw cs::lang_error("GmSSL SM2 sign init failed.");
 		}
 
-		uint8_array_t sig(SM2_MAX_SIGNATURE_SIZE);
+		uint8_array_t sig(sm2_max_signature_size);
 		size_t outlen = 0;
 		size_t offset = 0;
 
@@ -231,7 +234,7 @@ namespace gmssl {
 		if (pubkey.size() == 0)
 			throw cs::lang_error("GmSSL SM2 public key is empty.");
 
-		if (sig.size() == 0 || sig.size() > SM2_MAX_SIGNATURE_SIZE)
+		if (sig.size() == 0 || sig.size() > sm2_max_signature_size)
 			throw cs::lang_error("GmSSL SM2 signature size invalid.");
 
 		if (input_bytes.size() == 0)
@@ -289,12 +292,14 @@ namespace gmssl {
 
 		return vr == 1;
 	}
+	constexpr size_t sm2_max_plaintext_size = SM2_MAX_PLAINTEXT_SIZE;
+	constexpr size_t sm2_max_ciphertext_size = SM2_MAX_CIPHERTEXT_SIZE;
 	uint8_array_t sm2_encrypt(const uint8_array_t &pubkey, const uint8_array_t &input_data)
 	{
 		if (pubkey.size() == 0)
 			throw cs::lang_error("GmSSL SM2 public key is empty.");
 
-		if (input_data.size() == 0 || input_data.size() > SM2_MAX_PLAINTEXT_SIZE)
+		if (input_data.size() == 0 || input_data.size() > sm2_max_plaintext_size)
 			throw cs::lang_error("GmSSL SM2 plaintext size invalid.");
 
 		SM2_KEY key;
@@ -325,7 +330,7 @@ namespace gmssl {
 			throw cs::lang_error("GmSSL SM2 encrypt init failed.");
 		}
 
-		uint8_array_t outbuf(SM2_MAX_CIPHERTEXT_SIZE);
+		uint8_array_t outbuf(sm2_max_ciphertext_size);
 		size_t outlen = outbuf.size();
 
 		if (sm2_encrypt_update(&ctx, input_data.data(), input_data.size()) != 1) {
@@ -358,7 +363,7 @@ namespace gmssl {
 		if (privkey.size() == 0)
 			throw cs::lang_error("GmSSL SM2 private key is empty.");
 
-		if (input_data.size() == 0 || input_data.size() > SM2_MAX_CIPHERTEXT_SIZE)
+		if (input_data.size() == 0 || input_data.size() > sm2_max_ciphertext_size)
 			throw cs::lang_error("GmSSL SM2 ciphertext size invalid.");
 
 		SM2_KEY key;
@@ -392,7 +397,7 @@ namespace gmssl {
 			throw cs::lang_error("GmSSL SM2 decrypt init failed.");
 		}
 
-		uint8_array_t outbuf(SM2_MAX_CIPHERTEXT_SIZE);
+		uint8_array_t outbuf(sm2_max_ciphertext_size);
 		size_t outlen = outbuf.size();
 
 		if (sm2_decrypt_update(&ctx, input_data.data(), input_data.size()) != 1) {
@@ -420,6 +425,78 @@ namespace gmssl {
 
 		return std::move(ret);
 	}
+	constexpr size_t ecdh_shared_key_size = 32;
+	uint8_array_t sm2_ecdh(const uint8_array_t &privkey, const std::string &passwd, const uint8_array_t &peer_pubkey)
+	{
+		if (privkey.size() == 0)
+			throw cs::lang_error("GmSSL SM2 private key is empty.");
+		if (peer_pubkey.size() == 0)
+			throw cs::lang_error("GmSSL SM2 peer public key is empty.");
+
+		SM2_KEY key;
+		uint8_array_t keybuf(buff_size);
+		if (privkey.size() > keybuf.size())
+			throw cs::lang_error("GmSSL SM2 private key too large.");
+		std::memcpy(keybuf.data(), privkey.data(), privkey.size());
+		const uint8_t *keyp = keybuf.data();
+		size_t keylen = privkey.size();
+		const uint8_t *attrs = nullptr;
+		size_t attrs_len = 0;
+		if (sm2_private_key_info_decrypt_from_der(&key, &attrs, &attrs_len, passwd.c_str(), &keyp, &keylen) != 1) {
+			gmssl_secure_clear(&key, sizeof(key));
+			gmssl_secure_clear(keybuf.data(), keybuf.size());
+			throw cs::lang_error("GmSSL SM2 private key decode failed.");
+		}
+		if (!asn1_length_is_zero(keylen)) {
+			gmssl_secure_clear(&key, sizeof(key));
+			gmssl_secure_clear(keybuf.data(), keybuf.size());
+			throw cs::lang_error("GmSSL SM2 extra bytes after private key decode.");
+		}
+
+		SM2_KEY peer_key;
+		uint8_array_t peerkeybuf(buff_size);
+		if (peer_pubkey.size() > peerkeybuf.size()) {
+			gmssl_secure_clear(&key, sizeof(key));
+			gmssl_secure_clear(keybuf.data(), keybuf.size());
+			throw cs::lang_error("GmSSL SM2 peer public key too large.");
+		}
+		std::memcpy(peerkeybuf.data(), peer_pubkey.data(), peer_pubkey.size());
+		const uint8_t *peerp = peerkeybuf.data();
+		size_t peerlen = peer_pubkey.size();
+		if (sm2_public_key_info_from_der(&peer_key, &peerp, &peerlen) != 1) {
+			gmssl_secure_clear(&key, sizeof(key));
+			gmssl_secure_clear(&peer_key, sizeof(peer_key));
+			gmssl_secure_clear(keybuf.data(), keybuf.size());
+			gmssl_secure_clear(peerkeybuf.data(), peerkeybuf.size());
+			throw cs::lang_error("GmSSL SM2 peer public key decode failed.");
+		}
+		if (!asn1_length_is_zero(peerlen)) {
+			gmssl_secure_clear(&key, sizeof(key));
+			gmssl_secure_clear(&peer_key, sizeof(peer_key));
+			gmssl_secure_clear(keybuf.data(), keybuf.size());
+			gmssl_secure_clear(peerkeybuf.data(), peerkeybuf.size());
+			throw cs::lang_error("GmSSL SM2 extra bytes after peer public key decode.");
+		}
+
+		uint8_t out[32];
+		if (sm2_do_ecdh(&key, &peer_key, out) != 1) {
+			gmssl_secure_clear(&key, sizeof(key));
+			gmssl_secure_clear(&peer_key, sizeof(peer_key));
+			gmssl_secure_clear(keybuf.data(), keybuf.size());
+			gmssl_secure_clear(peerkeybuf.data(), peerkeybuf.size());
+			gmssl_secure_clear(out, sizeof(out));
+			throw cs::lang_error("GmSSL SM2 ECDH failed.");
+		}
+
+		uint8_array_t result(out, out + 32);
+		gmssl_secure_clear(&key, sizeof(key));
+		gmssl_secure_clear(&peer_key, sizeof(peer_key));
+		gmssl_secure_clear(keybuf.data(), keybuf.size());
+		gmssl_secure_clear(peerkeybuf.data(), peerkeybuf.size());
+		gmssl_secure_clear(out, sizeof(out));
+		return result;
+	}
+	constexpr size_t sm3_digest_size = SM3_DIGEST_SIZE;
 	uint8_array_t sm3(const uint8_array_t &input_data)
 	{
 		SM3_DIGEST_CTX ctx;
@@ -434,7 +511,7 @@ namespace gmssl {
 			throw cs::lang_error("GmSSL SM3 update error.");
 		}
 
-		uint8_array_t raw_hash(SM3_DIGEST_SIZE);
+		uint8_array_t raw_hash(sm3_digest_size);
 		if (sm3_digest_finish(&ctx, raw_hash.data()) != 1) {
 			gmssl_secure_clear(&ctx, sizeof(ctx));
 			throw cs::lang_error("GmSSL SM3 finish failed.");
@@ -448,7 +525,7 @@ namespace gmssl {
 	{
 		SM3_DIGEST_CTX ctx;
 
-		if (key.size() > SM3_DIGEST_SIZE)
+		if (key.size() > sm3_digest_size)
 			throw cs::lang_error("GmSSL SM3 HMAC key size invalid.");
 
 		if (sm3_digest_init(&ctx, key.data(), key.size()) != 1) {
@@ -461,7 +538,7 @@ namespace gmssl {
 			throw cs::lang_error("GmSSL SM3 HMAC update error.");
 		}
 
-		uint8_array_t raw_mac(SM3_DIGEST_SIZE);
+		uint8_array_t raw_mac(sm3_digest_size);
 		if (sm3_digest_finish(&ctx, raw_mac.data()) != 1) {
 			gmssl_secure_clear(&ctx, sizeof(ctx));
 			throw cs::lang_error("GmSSL SM3 HMAC finish failed.");
@@ -471,11 +548,15 @@ namespace gmssl {
 
 		return raw_mac;
 	}
-	uint8_array_t sm3_pbkdf2(const std::string &pass, const uint8_array_t &salt, int iter_count, int outlen)
+	constexpr size_t sm3_pbkdf2_max_salt_size = SM3_PBKDF2_MAX_SALT_SIZE;
+	constexpr size_t sm3_pbkdf2_min_iter = SM3_PBKDF2_MIN_ITER;
+	constexpr size_t sm3_pbkdf2_max_iter = SM3_PBKDF2_MAX_ITER;
+	uint8_array_t sm3_pbkdf2(const std::string &pass, const uint8_array_t &salt, size_t iter_count, size_t outlen)
 	{
-		SM3_DIGEST_CTX ctx;
-
-		if (salt.size() > SM3_PBKDF2_MAX_SALT_SIZE || iter_count < 1 || outlen < 1)
+		if (salt.size() == 0 || salt.size() > sm3_pbkdf2_max_salt_size ||
+		        iter_count < sm3_pbkdf2_min_iter ||
+		        iter_count > sm3_pbkdf2_max_iter ||
+		        outlen < 1)
 			throw cs::lang_error("GmSSL SM3 PBKDF2 arguments invalid.");
 
 		uint8_array_t outbuf(outlen);
@@ -551,6 +632,78 @@ namespace gmssl {
 		gmssl_secure_clear(&ctx, sizeof(ctx));
 		gmssl_secure_clear(buff.data(), buff_size);
 
+		return output_bytes;
+	}
+	constexpr size_t sm4_cbc_mac_size = SM4_CBC_MAC_SIZE;
+	uint8_array_t sm4_cbc_mac(const uint8_array_t &key, const uint8_array_t &data)
+	{
+		if (key.size() != SM4_KEY_SIZE)
+			throw cs::lang_error("GmSSL SM4 CBC-MAC key size invalid.");
+
+		SM4_CBC_MAC_CTX ctx;
+		if (sm4_cbc_mac_init(&ctx, key.data()) != 1) {
+			gmssl_secure_clear(&ctx, sizeof(ctx));
+			throw cs::lang_error("GmSSL SM4 CBC-MAC init failed.");
+		}
+
+		size_t offset = 0;
+		while (offset < data.size()) {
+			size_t inlen = offset + buff_size >= data.size() ? data.size() - offset : buff_size;
+			if (sm4_cbc_mac_update(&ctx, data.data() + offset, inlen) != 1) {
+				gmssl_secure_clear(&ctx, sizeof(ctx));
+				throw cs::lang_error("GmSSL SM4 CBC-MAC update failed.");
+			}
+			offset += inlen;
+		}
+
+		uint8_array_t mac(SM4_CBC_MAC_SIZE);
+		if (sm4_cbc_mac_finish(&ctx, mac.data()) != 1) {
+			gmssl_secure_clear(&ctx, sizeof(ctx));
+			throw cs::lang_error("GmSSL SM4 CBC-MAC finish failed.");
+		}
+
+		gmssl_secure_clear(&ctx, sizeof(ctx));
+		return mac;
+	}
+	constexpr size_t zuc_key_size = ZUC_KEY_SIZE;
+	constexpr size_t zuc_iv_size = ZUC_IV_SIZE;
+	uint8_array_t zuc_encrypt(const uint8_array_t &key, const uint8_array_t &iv, const uint8_array_t &data)
+	{
+		if (key.size() != ZUC_KEY_SIZE)
+			throw cs::lang_error("GmSSL ZUC key size invalid.");
+		if (iv.size() != ZUC_IV_SIZE)
+			throw cs::lang_error("GmSSL ZUC IV size invalid.");
+
+		ZUC_CTX ctx;
+		if (zuc_encrypt_init(&ctx, key.data(), iv.data()) != 1) {
+			gmssl_secure_clear(&ctx, sizeof(ctx));
+			throw cs::lang_error("GmSSL ZUC encrypt init failed.");
+		}
+
+		uint8_array_t output_bytes(data.size());
+		size_t total_outlen = 0;
+		size_t offset = 0;
+
+		while (offset < data.size()) {
+			size_t inlen = offset + buff_size >= data.size() ? data.size() - offset : buff_size;
+			size_t outlen = 0;
+			if (zuc_encrypt_update(&ctx, data.data() + offset, inlen, output_bytes.data() + total_outlen, &outlen) != 1) {
+				gmssl_secure_clear(&ctx, sizeof(ctx));
+				throw cs::lang_error("GmSSL ZUC encrypt update failed.");
+			}
+			total_outlen += outlen;
+			offset += inlen;
+		}
+
+		size_t final_outlen = 0;
+		if (zuc_encrypt_finish(&ctx, output_bytes.data() + total_outlen, &final_outlen) != 1) {
+			gmssl_secure_clear(&ctx, sizeof(ctx));
+			throw cs::lang_error("GmSSL ZUC encrypt finish failed.");
+		}
+		total_outlen += final_outlen;
+		output_bytes.resize(total_outlen);
+
+		gmssl_secure_clear(&ctx, sizeof(ctx));
 		return output_bytes;
 	}
 }

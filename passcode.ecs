@@ -4,7 +4,7 @@ import imgui, imgui_font
 import gmssl
 import regex
 
-constant salt = "covscript_passcode"
+constant salt = gmssl.bytes_encode("covscript_passcode")
 constant pem_cutoff = 32
 
 function key2pem(key, name)
@@ -36,7 +36,7 @@ function do_encrypt(text, iv, pbk)
     var bytes_iv = gmssl.hex_decode(gmssl.bytes_encode(iv))
     var data = gmssl.bytes_decode(gmssl.base64_encode(gmssl.sm2_encrypt(pem2key(pbk), bytes_iv)))
     data.append("&")
-    var sm4_pass = gmssl.sm3_pbkdf2(iv, salt, 5, gmssl.sm4_key_size)
+    var sm4_pass = gmssl.sm3_pbkdf2(iv, salt, gmssl.sm3_pbkdf2_min_iter, gmssl.sm4_key_size)
     data.append(gmssl.bytes_decode(gmssl.base64_encode(gmssl.sm4(gmssl.sm4_mode.ctr_encrypt, sm4_pass, bytes_iv, text))))
     return key2pem(data, "EC PASSCODE")
 end
@@ -64,7 +64,7 @@ function do_decrypt(text, pvk, pass)
     data = data.substr(pos + 1, data.size - pos)
     bytes_iv = gmssl.sm2_decrypt(pem2key(pvk), pass, gmssl.base64_decode(gmssl.bytes_encode(bytes_iv)))
     var iv = gmssl.bytes_decode(gmssl.hex_encode(bytes_iv))
-    var sm4_pass = gmssl.sm3_pbkdf2(iv, salt, 5, gmssl.sm4_key_size)
+    var sm4_pass = gmssl.sm3_pbkdf2(iv, salt, gmssl.sm3_pbkdf2_min_iter, gmssl.sm4_key_size)
     return gmssl.bytes_decode(gmssl.sm4(gmssl.sm4_mode.ctr_decrypt, sm4_pass, bytes_iv, gmssl.base64_decode(gmssl.bytes_encode(data))))
 end
 

@@ -56,12 +56,21 @@ CNI_ROOT_NAMESPACE {
 		return cs::var::make<cs::array>(cs::array({pubkey, privkey}));
 	}
 	CNI_V(sm2_key_generate, sm2_key_generate_impl)
+	CNI_VALUE_CONST(sm2_max_signature_size, gmssl::sm2_max_signature_size)
 	CNI_V(sm2_sign, gmssl::sm2_sign)
 	CNI_V(sm2_verify, gmssl::sm2_verify)
+	CNI_VALUE_CONST(sm2_max_plaintext_size, gmssl::sm2_max_plaintext_size)
+	CNI_VALUE_CONST(sm2_max_ciphertext_size, gmssl::sm2_max_ciphertext_size)
 	CNI_V(sm2_encrypt, gmssl::sm2_encrypt)
 	CNI_V(sm2_decrypt, gmssl::sm2_decrypt)
+	CNI_VALUE_CONST(ecdh_shared_key_size, gmssl::ecdh_shared_key_size)
+	CNI_V(sm2_ecdh, gmssl::sm2_ecdh)
+	CNI_VALUE_CONST(sm3_digest_size, gmssl::sm3_digest_size)
 	CNI(sm3)
 	CNI(sm3_hmac)
+	CNI_VALUE_CONST(sm3_pbkdf2_max_salt_size, gmssl::sm3_pbkdf2_max_salt_size)
+	CNI_VALUE_CONST(sm3_pbkdf2_min_iter, gmssl::sm3_pbkdf2_min_iter)
+	CNI_VALUE_CONST(sm3_pbkdf2_max_iter, gmssl::sm3_pbkdf2_max_iter)
 	CNI_V(sm3_pbkdf2, gmssl::sm3_pbkdf2)
 	CNI_NAMESPACE(sm4_mode)
 	{
@@ -72,4 +81,9 @@ CNI_ROOT_NAMESPACE {
 	}
 	CNI_VALUE_CONST(sm4_key_size, gmssl::sm4_key_size)
 	CNI(sm4)
+	CNI_VALUE_CONST(sm4_cbc_mac_size, gmssl::sm4_cbc_mac_size)
+	CNI_V(sm4_cbc_mac, gmssl::sm4_cbc_mac)
+	CNI_VALUE_CONST(zuc_key_size, gmssl::zuc_key_size)
+	CNI_VALUE_CONST(zuc_iv_size, gmssl::zuc_iv_size)
+	CNI_V(zuc_encrypt, gmssl::zuc_encrypt)
 }

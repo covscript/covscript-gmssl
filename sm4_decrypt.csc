@@ -16,7 +16,7 @@ loop
     end
 end
 system.console.echo(true)
-key = gmssl.sm3_pbkdf2(key, gmssl.bytes_encode("covscript"), 5, gmssl.sm4_key_size)
+key = gmssl.sm3_pbkdf2(key, gmssl.bytes_encode("covscript"), gmssl.sm3_pbkdf2_min_iter, gmssl.sm4_key_size)
 
 system.out.print("SM4 IV: ")
 var iv = system.in.getline()
