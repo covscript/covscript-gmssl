@@ -154,6 +154,7 @@ namespace gmssl {
 		privkey.assign(buf.data(), buf.data() + len);
 		gmssl_secure_clear(buf.data(), buf.size());
 	}
+	constexpr size_t sm2_max_signature_size = SM2_MAX_SIGNATURE_SIZE;
 	uint8_array_t sm2_sign(const uint8_array_t &privkey, const std::string &passwd, const std::string &id, const uint8_array_t &input_bytes)
 	{
 		if (privkey.size() == 0)
@@ -193,7 +194,7 @@ namespace gmssl {
 			throw cs::lang_error("GmSSL SM2 sign init failed.");
 		}
 
-		uint8_array_t sig(SM2_MAX_SIGNATURE_SIZE);
+		uint8_array_t sig(sm2_max_signature_size);
 		size_t outlen = 0;
 		size_t offset = 0;
 
@@ -231,7 +232,7 @@ namespace gmssl {
 		if (pubkey.size() == 0)
 			throw cs::lang_error("GmSSL SM2 public key is empty.");
 
-		if (sig.size() == 0 || sig.size() > SM2_MAX_SIGNATURE_SIZE)
+		if (sig.size() == 0 || sig.size() > sm2_max_signature_size)
 			throw cs::lang_error("GmSSL SM2 signature size invalid.");
 
 		if (input_bytes.size() == 0)
@@ -289,12 +290,14 @@ namespace gmssl {
 
 		return vr == 1;
 	}
+	constexpr size_t sm2_max_plaintext_size = SM2_MAX_PLAINTEXT_SIZE;
+	constexpr size_t sm2_max_ciphertext_size = SM2_MAX_CIPHERTEXT_SIZE;
 	uint8_array_t sm2_encrypt(const uint8_array_t &pubkey, const uint8_array_t &input_data)
 	{
 		if (pubkey.size() == 0)
 			throw cs::lang_error("GmSSL SM2 public key is empty.");
 
-		if (input_data.size() == 0 || input_data.size() > SM2_MAX_PLAINTEXT_SIZE)
+		if (input_data.size() == 0 || input_data.size() > sm2_max_plaintext_size)
 			throw cs::lang_error("GmSSL SM2 plaintext size invalid.");
 
 		SM2_KEY key;
@@ -325,7 +328,7 @@ namespace gmssl {
 			throw cs::lang_error("GmSSL SM2 encrypt init failed.");
 		}
 
-		uint8_array_t outbuf(SM2_MAX_CIPHERTEXT_SIZE);
+		uint8_array_t outbuf(sm2_max_ciphertext_size);
 		size_t outlen = outbuf.size();
 
 		if (sm2_encrypt_update(&ctx, input_data.data(), input_data.size()) != 1) {
@@ -358,7 +361,7 @@ namespace gmssl {
 		if (privkey.size() == 0)
 			throw cs::lang_error("GmSSL SM2 private key is empty.");
 
-		if (input_data.size() == 0 || input_data.size() > SM2_MAX_CIPHERTEXT_SIZE)
+		if (input_data.size() == 0 || input_data.size() > sm2_max_ciphertext_size)
 			throw cs::lang_error("GmSSL SM2 ciphertext size invalid.");
 
 		SM2_KEY key;
@@ -392,7 +395,7 @@ namespace gmssl {
 			throw cs::lang_error("GmSSL SM2 decrypt init failed.");
 		}
 
-		uint8_array_t outbuf(SM2_MAX_CIPHERTEXT_SIZE);
+		uint8_array_t outbuf(sm2_max_ciphertext_size);
 		size_t outlen = outbuf.size();
 
 		if (sm2_decrypt_update(&ctx, input_data.data(), input_data.size()) != 1) {
@@ -420,6 +423,7 @@ namespace gmssl {
 
 		return std::move(ret);
 	}
+	constexpr size_t sm3_digest_size = SM3_DIGEST_SIZE;
 	uint8_array_t sm3(const uint8_array_t &input_data)
 	{
 		SM3_DIGEST_CTX ctx;
@@ -434,7 +438,7 @@ namespace gmssl {
 			throw cs::lang_error("GmSSL SM3 update error.");
 		}
 
-		uint8_array_t raw_hash(SM3_DIGEST_SIZE);
+		uint8_array_t raw_hash(sm3_digest_size);
 		if (sm3_digest_finish(&ctx, raw_hash.data()) != 1) {
 			gmssl_secure_clear(&ctx, sizeof(ctx));
 			throw cs::lang_error("GmSSL SM3 finish failed.");
@@ -448,7 +452,7 @@ namespace gmssl {
 	{
 		SM3_DIGEST_CTX ctx;
 
-		if (key.size() > SM3_DIGEST_SIZE)
+		if (key.size() > sm3_digest_size)
 			throw cs::lang_error("GmSSL SM3 HMAC key size invalid.");
 
 		if (sm3_digest_init(&ctx, key.data(), key.size()) != 1) {
@@ -461,7 +465,7 @@ namespace gmssl {
 			throw cs::lang_error("GmSSL SM3 HMAC update error.");
 		}
 
-		uint8_array_t raw_mac(SM3_DIGEST_SIZE);
+		uint8_array_t raw_mac(sm3_digest_size);
 		if (sm3_digest_finish(&ctx, raw_mac.data()) != 1) {
 			gmssl_secure_clear(&ctx, sizeof(ctx));
 			throw cs::lang_error("GmSSL SM3 HMAC finish failed.");
@@ -471,11 +475,15 @@ namespace gmssl {
 
 		return raw_mac;
 	}
-	uint8_array_t sm3_pbkdf2(const std::string &pass, const uint8_array_t &salt, int iter_count, int outlen)
+	constexpr size_t sm3_pbkdf2_max_salt_size = SM3_PBKDF2_MAX_SALT_SIZE;
+	constexpr size_t sm3_pbkdf2_min_iter = SM3_PBKDF2_MIN_ITER;
+	constexpr size_t sm3_pbkdf2_max_iter = SM3_PBKDF2_MAX_ITER;
+	uint8_array_t sm3_pbkdf2(const std::string &pass, const uint8_array_t &salt, size_t iter_count, size_t outlen)
 	{
-		SM3_DIGEST_CTX ctx;
-
-		if (salt.size() > SM3_PBKDF2_MAX_SALT_SIZE || iter_count < 1 || outlen < 1)
+		if (salt.size() > sm3_pbkdf2_max_salt_size ||
+		        iter_count < sm3_pbkdf2_min_iter ||
+		        iter_count > sm3_pbkdf2_max_iter ||
+		        outlen < 1)
 			throw cs::lang_error("GmSSL SM3 PBKDF2 arguments invalid.");
 
 		uint8_array_t outbuf(outlen);
