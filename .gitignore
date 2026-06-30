@@ -8,3 +8,4 @@ authorized_keys
 *.orig
 .ecs_output/
 argparse.csp
+imgui.ini

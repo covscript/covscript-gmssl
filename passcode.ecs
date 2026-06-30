@@ -53,7 +53,7 @@ end
 
 function do_decrypt(text, pvk, pass)
     if text.empty()
-        throw new decrypt_exception{"Data fis empty."}
+        throw new decrypt_exception{"Data is empty."}
     end
     var data = gmssl.bytes_decode(pem2key(text)), bytes_iv = null
     var pos = data.find("&", 0)
