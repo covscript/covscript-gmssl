@@ -553,7 +553,7 @@ namespace gmssl {
 	constexpr size_t sm3_pbkdf2_max_iter = SM3_PBKDF2_MAX_ITER;
 	uint8_array_t sm3_pbkdf2(const std::string &pass, const uint8_array_t &salt, size_t iter_count, size_t outlen)
 	{
-		if (salt.size() > sm3_pbkdf2_max_salt_size ||
+		if (salt.size() == 0 || salt.size() > sm3_pbkdf2_max_salt_size ||
 		        iter_count < sm3_pbkdf2_min_iter ||
 		        iter_count > sm3_pbkdf2_max_iter ||
 		        outlen < 1)

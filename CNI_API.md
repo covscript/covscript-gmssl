@@ -8,10 +8,10 @@ CovScript 国密算法扩展，基于 [GmSSL](https://github.com/guanzhi/GmSSL) 
 |------|------|--------|------|
 | `bytes_encode` | `(str) → bytes` | `bytes_array` | 字符串转字节数组 |
 | `bytes_decode` | `(bytes) → str` | `string` | 字节数组转字符串 |
-| `hex_encode` | `(bytes) → str` | `string` | 字节数组转 hex 字符串（小写） |
+| `hex_encode` | `(bytes) → bytes` | `bytes_array` | 字节数组转 hex（ASCII 字节）。需 `bytes_decode` 转字符串显示 |
 | `hex_decode` | `(bytes) → bytes` | `bytes_array` | hex 字节数组转二进制 |
-| `base64_encode` | `(bytes) → str` | `string` | 字节数组转 base64 字符串 |
-| `base64_decode` | `(bytes) → str` | `string` | base64 字节数组转原始数据 |
+| `base64_encode` | `(bytes) → bytes` | `bytes_array` | 字节数组转 base64（ASCII 字节）。需 `bytes_decode` 转字符串显示 |
+| `base64_decode` | `(bytes) → bytes` | `bytes_array` | base64 字节数组转原始数据 |
 | `rand_bytes` | `(count: int) → bytes` | `bytes_array` | 生成 `count` 个密码学安全随机字节 |
 | `rand_chars` | `(count: int, seed: int) → str` | `string` | 生成 `count` 个随机字符（确定性，基于种子） |
 | `secure_clear` | `(bytes) → void` | - | 安全清除字节数组内容（防内存残留） |
