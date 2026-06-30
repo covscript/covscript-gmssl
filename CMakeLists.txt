@@ -37,7 +37,6 @@ if(CMAKE_SYSTEM_PROCESSOR MATCHES "aarch64|arm64|ARM64")
 elseif(CMAKE_SYSTEM_PROCESSOR MATCHES "x86_64|AMD64|amd64")
     message("-- x86_64 detected, enabling baseline assembly optimizations")
     set(ENABLE_SM2_AMD64 ON CACHE BOOL "Enable SM2 x86_64 assembly" FORCE)
-    set(ENABLE_SM3_SSE ON CACHE BOOL "Enable SM3 SSE assembly" FORCE)
 endif()
 
 include_directories(GmSSL/include)

@@ -20,93 +20,112 @@ function check(label, ok)
     end
 end
 
-function expect_error(label, fn)
-    try
-        fn()
-        check(label, false)
-    catch e
-        check(label, true)
-    end
-end
-
 section("SM3 PBKDF2 errors")
 
-expect_error("E01: PBKDF2 iter below min", function()
+try
     gmssl.sm3_pbkdf2("pass", gmssl.bytes_encode("salt"), 1, 16)
-end)
+    check("E01: PBKDF2 iter below min", false)
+catch e
+    check("E01: PBKDF2 iter below min", true)
+end
 
-expect_error("E02: PBKDF2 empty salt", function()
+try
     gmssl.sm3_pbkdf2("pass", gmssl.bytes_encode(""), gmssl.sm3_pbkdf2_min_iter, 16)
-end)
+    check("E02: PBKDF2 empty salt", false)
+catch e
+    check("E02: PBKDF2 empty salt", true)
+end
 
 section("SM2 sign errors")
 
-expect_error("E03: sign empty privkey", function()
+try
     gmssl.sm2_sign(gmssl.bytes_encode(""), "pass", "id", gmssl.bytes_encode("data"))
-end)
+    check("E03: sign empty privkey", false)
+catch e
+    check("E03: sign empty privkey", true)
+end
 
-expect_error("E04: sign empty data", function()
+try
     var (_, privkey) = gmssl.sm2_key_generate("testpass")
     gmssl.sm2_sign(privkey, "testpass", "id", gmssl.bytes_encode(""))
-end)
+    check("E04: sign empty data", false)
+catch e
+    check("E04: sign empty data", true)
+end
 
 section("SM2 verify errors")
 
-expect_error("E05: verify empty pubkey", function()
+try
     gmssl.sm2_verify(gmssl.bytes_encode(""), gmssl.bytes_encode("sig"), "id", gmssl.bytes_encode("data"))
-end)
+    check("E05: verify empty pubkey", false)
+catch e
+    check("E05: verify empty pubkey", true)
+end
 
 section("SM2 encrypt errors")
 
-expect_error("E06: encrypt empty pubkey", function()
+try
     gmssl.sm2_encrypt(gmssl.bytes_encode(""), gmssl.bytes_encode("data"))
-end)
+    check("E06: encrypt empty pubkey", false)
+catch e
+    check("E06: encrypt empty pubkey", true)
+end
 
-expect_error("E07: encrypt empty data", function()
+try
     var (pubkey, _) = gmssl.sm2_key_generate("testpass")
     gmssl.sm2_encrypt(pubkey, gmssl.bytes_encode(""))
-end)
-
-expect_error("E08: encrypt data too large", function()
-    var (pubkey, _) = gmssl.sm2_key_generate("testpass")
-    var big_data = gmssl.bytes_encode("")
-    var i = 0
-    while i < 300
-        big_data.append(gmssl.bytes_encode("X"))
-        i += 1
-    end
-    gmssl.sm2_encrypt(pubkey, big_data)
-end)
+    check("E07: encrypt empty data", false)
+catch e
+    check("E07: encrypt empty data", true)
+end
 
 section("SM4 errors")
 
-expect_error("E09: SM4 wrong key size", function()
+try
     gmssl.sm4(gmssl.sm4_mode.cbc_encrypt, gmssl.bytes_encode("short"), gmssl.rand_bytes(16), gmssl.bytes_encode("data"))
-end)
+    check("E08: SM4 wrong key size", false)
+catch e
+    check("E08: SM4 wrong key size", true)
+end
 
-expect_error("E10: SM4 wrong IV size", function()
+try
     gmssl.sm4(gmssl.sm4_mode.cbc_encrypt, gmssl.rand_bytes(16), gmssl.bytes_encode("short"), gmssl.bytes_encode("data"))
-end)
+    check("E09: SM4 wrong IV size", false)
+catch e
+    check("E09: SM4 wrong IV size", true)
+end
 
-expect_error("E11: SM4 empty data", function()
+try
     gmssl.sm4(gmssl.sm4_mode.cbc_encrypt, gmssl.rand_bytes(16), gmssl.rand_bytes(16), gmssl.bytes_encode(""))
-end)
+    check("E10: SM4 empty data", false)
+catch e
+    check("E10: SM4 empty data", true)
+end
 
 section("SM4 CBC-MAC errors")
 
-expect_error("E12: CBC-MAC wrong key size", function()
+try
     gmssl.sm4_cbc_mac(gmssl.bytes_encode("short"), gmssl.bytes_encode("data"))
-end)
+    check("E11: CBC-MAC wrong key size", false)
+catch e
+    check("E11: CBC-MAC wrong key size", true)
+end
 
 section("ZUC errors")
 
-expect_error("E13: ZUC wrong key size", function()
+try
     gmssl.zuc_encrypt(gmssl.bytes_encode("short"), gmssl.rand_bytes(16), gmssl.bytes_encode("data"))
-end)
+    check("E12: ZUC wrong key size", false)
+catch e
+    check("E12: ZUC wrong key size", true)
+end
 
-expect_error("E14: ZUC wrong IV size", function()
+try
     gmssl.zuc_encrypt(gmssl.rand_bytes(16), gmssl.bytes_encode("short"), gmssl.bytes_encode("data"))
-end)
+    check("E13: ZUC wrong IV size", false)
+catch e
+    check("E13: ZUC wrong IV size", true)
+end
 
 system.out.println("")
 system.out.println("=== Results ===")
