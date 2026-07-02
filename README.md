@@ -57,8 +57,6 @@ done
 ## 文档
 
 + [CNI_API.md](CNI_API.md) — CovScript 脚本侧 API 参考
-+ [SIMPLE_TLS.md](SIMPLE_TLS.md) — 基于国密算法的简易 TLS 库
-+ [ARGPARSE.md](ARGPARSE.md) — 命令行参数解析库
 
 ## 项目结构
 

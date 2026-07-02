@@ -7,5 +7,4 @@ authorized_keys
 *.pem
 *.orig
 .ecs_output/
-argparse.csp
 imgui.ini
