@@ -28,8 +28,8 @@ set(ENABLE_SKF OFF CACHE BOOL "Override ENABLE_SKF option to OFF")
 set(ENABLE_SDF OFF CACHE BOOL "Override ENABLE_SDF option to OFF")
 
 # Platform-specific performance optimizations
-if(CMAKE_SYSTEM_PROCESSOR MATCHES "aarch64|arm64|ARM64")
-    message("-- ARM64 detected, enabling assembly optimizations")
+if(APPLE AND CMAKE_SYSTEM_PROCESSOR MATCHES "aarch64|arm64|ARM64")
+    message("-- macOS ARM64 detected, enabling assembly optimizations")
     set(ENABLE_SM2_ARM64 ON CACHE BOOL "Enable SM2 ARM64 assembly" FORCE)
     set(ENABLE_SM3_ARM64 ON CACHE BOOL "Enable SM3 ARM64 assembly" FORCE)
     set(ENABLE_SM4_ARM64 ON CACHE BOOL "Enable SM4 ARM64 assembly" FORCE)
